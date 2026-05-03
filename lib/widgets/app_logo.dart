@@ -42,17 +42,19 @@ class AppLogo extends StatelessWidget {
 class _LogoPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final r = size.width / 2;
-    final center = Offset(r, r);
+    // Draw in a 96x96 design space, scale to the requested size.
+    canvas.save();
+    canvas.scale(size.width / 96.0);
+
+    const center = Offset(48, 48);
 
     // Outer pastel disc.
-    final discRect = Rect.fromCircle(center: center, radius: r);
     canvas.drawCircle(
       center,
-      r,
+      46,
       Paint()
         ..shader = const RadialGradient(
-          center: Alignment(-0.2, -0.25),
+          center: Alignment(-0.24, -0.28),
           radius: 0.95,
           colors: [
             Color(0xFFFFF1FA),
@@ -60,50 +62,46 @@ class _LogoPainter extends CustomPainter {
             Color(0xFFD6E8D2),
           ],
           stops: [0.0, 0.55, 1.0],
-        ).createShader(discRect),
+        ).createShader(const Rect.fromLTWH(0, 0, 96, 96)),
     );
 
-    // Inner highlight ring for that soft glass feel.
+    // Inner highlight ring for the soft glass feel.
     canvas.drawCircle(
       center,
-      r - 1,
+      45,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.2
         ..color = Colors.white.withOpacity(0.45),
     );
 
-    // Crescent moon (the brand mark): two overlapping circles, even-odd fill.
-    final crescentR = r * 0.46;
-    final crescent = Path()
-      ..fillType = PathFillType.evenOdd
-      ..addOval(Rect.fromCircle(
-        center: center.translate(-r * 0.04, r * 0.06),
-        radius: crescentR,
-      ))
-      ..addOval(Rect.fromCircle(
-        center: center.translate(r * 0.18, -r * 0.04),
-        radius: crescentR,
-      ));
+    // Soft smile — single quadratic curve, dark ink, rounded caps.
+    final smile = Path()
+      ..moveTo(28, 50)
+      ..quadraticBezierTo(48, 74, 68, 50);
     canvas.drawPath(
-      crescent,
-      Paint()..color = AppPalette.ink.withOpacity(0.92),
+      smile,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 6
+        ..strokeCap = StrokeCap.round
+        ..color = AppPalette.ink.withOpacity(0.92),
     );
 
-    // Sparkle near the top-right, just inside the disc.
-    final sparkleCenter = center.translate(r * 0.55, -r * 0.55);
-    final sp = r * 0.13;
+    // Sparkle, top-right area of the disc.
     final sparkle = Path()
-      ..moveTo(sparkleCenter.dx, sparkleCenter.dy - sp)
-      ..lineTo(sparkleCenter.dx + sp * 0.32, sparkleCenter.dy - sp * 0.32)
-      ..lineTo(sparkleCenter.dx + sp, sparkleCenter.dy)
-      ..lineTo(sparkleCenter.dx + sp * 0.32, sparkleCenter.dy + sp * 0.32)
-      ..lineTo(sparkleCenter.dx, sparkleCenter.dy + sp)
-      ..lineTo(sparkleCenter.dx - sp * 0.32, sparkleCenter.dy + sp * 0.32)
-      ..lineTo(sparkleCenter.dx - sp, sparkleCenter.dy)
-      ..lineTo(sparkleCenter.dx - sp * 0.32, sparkleCenter.dy - sp * 0.32)
+      ..moveTo(74, 22)
+      ..lineTo(76, 28)
+      ..lineTo(82, 30)
+      ..lineTo(76, 32)
+      ..lineTo(74, 38)
+      ..lineTo(72, 32)
+      ..lineTo(66, 30)
+      ..lineTo(72, 28)
       ..close();
     canvas.drawPath(sparkle, Paint()..color = AppPalette.accent);
+
+    canvas.restore();
   }
 
   @override
