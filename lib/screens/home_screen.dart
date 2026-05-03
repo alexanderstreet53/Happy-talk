@@ -4,12 +4,16 @@ import 'package:flutter/services.dart';
 import '../models/personality.dart';
 import '../models/quote.dart';
 import '../services/quote_service.dart';
+import '../services/share_service.dart';
 import '../services/storage_service.dart';
+import '../services/widget_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_logo.dart';
 import '../widgets/gradient_background.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/quote_card.dart';
 import 'favorites_screen.dart';
+import 'sos_screen.dart';
 import 'splash_screen.dart';
 import 'welcome_screen.dart';
 
@@ -35,6 +39,9 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _feed = _quotes.shuffledFeed(widget.personality);
     _loadFavorites();
+    if (_feed.isNotEmpty) {
+      WidgetService.push(_feed.first);
+    }
   }
 
   Future<void> _loadFavorites() async {
@@ -55,9 +62,15 @@ class _HomeScreenState extends State<HomeScreen> {
     await StorageService.instance.writeFavorites(next.toList());
   }
 
-  Future<void> _copyQuote(Quote quote) async {
-    await Clipboard.setData(ClipboardData(text: '${quote.text}\n\n${quote.affirmation}'));
-    if (!mounted) return;
+  Future<void> _shareQuote(Quote quote) async {
+    HapticFeedback.selectionClick();
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box != null
+        ? box.localToGlobal(Offset.zero) & box.size
+        : null;
+    final shared = await const ShareService()
+        .share(quote, sharePositionOrigin: origin);
+    if (!mounted || shared) return;
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
       ..showSnackBar(
@@ -65,7 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppPalette.ink,
           content: Text(
-            'Copied. Take it with you.',
+            'Copied. Send it to someone soft.',
             style: TextStyle(color: AppPalette.cream),
           ),
         ),
@@ -125,16 +138,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 12, 16, 8),
                 child: Row(
                   children: [
-                    Text(personality.emoji, style: const TextStyle(fontSize: 28)),
-                    const SizedBox(width: 10),
+                    const AppLogo(size: 36, showShadow: false),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('today, for ${personality.title.toLowerCase()}',
-                              style: text.bodyMedium?.copyWith(fontSize: 13)),
-                          Text('a quiet thought',
-                              style: text.headlineSmall),
+                          Text(
+                            'today · ${personality.title.toLowerCase()}',
+                            style: text.bodyMedium?.copyWith(fontSize: 12, letterSpacing: 1.3),
+                          ),
+                          Text('a quiet thought', style: text.headlineSmall),
                         ],
                       ),
                     ),
@@ -153,11 +167,23 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                child: _SosPill(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.of(context).push(fadeRoute(const SosScreen()));
+                  },
+                ),
+              ),
               Expanded(
                 child: PageView.builder(
                   controller: _controller,
                   itemCount: _feed.length,
-                  onPageChanged: (i) => setState(() => _index = i),
+                  onPageChanged: (i) {
+                    setState(() => _index = i);
+                    WidgetService.push(_feed[i]);
+                  },
                   itemBuilder: (_, i) {
                     final quote = _feed[i];
                     final saved = _favorites.contains(quote.text);
@@ -168,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         gradient: personality.gradient,
                         isFavorite: saved,
                         onFavorite: () => _toggleFavorite(quote),
-                        onCopy: () => _copyQuote(quote),
+                        onCopy: () => _shareQuote(quote),
                       ),
                     );
                   },
@@ -208,6 +234,58 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SosPill extends StatelessWidget {
+  const _SosPill({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Material(
+      color: Colors.white.withOpacity(0.55),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const RadialGradient(
+                    colors: [Color(0xFFFFF1FA), Color(0xFFE6DCFF)],
+                  ),
+                ),
+                child: const Icon(Icons.spa_rounded,
+                    size: 18, color: AppPalette.ink),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('caught in a spiral?',
+                        style: text.titleLarge?.copyWith(fontSize: 15)),
+                    Text('open the calm room',
+                        style: text.bodyMedium?.copyWith(fontSize: 12)),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded,
+                  color: AppPalette.ink.withOpacity(0.55)),
             ],
           ),
         ),

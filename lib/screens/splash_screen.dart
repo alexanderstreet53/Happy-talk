@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/storage_service.dart';
-import '../theme/app_theme.dart';
+import '../widgets/app_logo.dart';
 import '../widgets/gradient_background.dart';
 import 'home_screen.dart';
 import 'welcome_screen.dart';
@@ -67,11 +67,8 @@ class _SplashScreenState extends State<SplashScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '✨',
-                  style: TextStyle(fontSize: 56, color: AppPalette.ink.withOpacity(0.85)),
-                ),
-                const SizedBox(height: 16),
+                const AppLogo(size: 120),
+                const SizedBox(height: 24),
                 Text(
                   'happy talk',
                   style: Theme.of(context).textTheme.displayMedium,

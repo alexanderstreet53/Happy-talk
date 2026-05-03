@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Happy Talk">
+  <defs>
+    <radialGradient id="ht-bg" cx="40%" cy="38%" r="68%">
+      <stop offset="0%" stop-color="#FFF1FA"/>
+      <stop offset="55%" stop-color="#E6DCFF"/>
+      <stop offset="100%" stop-color="#D6E8D2"/>
+    </radialGradient>
+  </defs>
+  <circle cx="48" cy="48" r="46" fill="url(#ht-bg)"/>
+  <circle cx="48" cy="48" r="45" fill="none" stroke="#ffffff" stroke-opacity="0.45" stroke-width="1.2"/>
+  <path fill-rule="evenodd" clip-rule="evenodd"
+        d="M 24 53 a 22 22 0 1 0 44 0 a 22 22 0 1 0 -44 0
+           M 32.5 46 a 22 22 0 1 1 44 0 a 22 22 0 1 1 -44 0 Z"
+        fill="#1F1B2E" fill-opacity="0.92"/>
+  <path d="M 74.5 21.5 L 76 27.5 L 82 29 L 76 30.5 L 74.5 36.5 L 73 30.5 L 67 29 L 73 27.5 Z"
+        fill="#7C5CFF"/>
+</svg>

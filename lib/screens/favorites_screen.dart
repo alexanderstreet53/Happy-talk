@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../models/quote.dart';
 import '../services/quote_service.dart';
+import '../services/share_service.dart';
 import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/gradient_background.dart';
@@ -44,6 +45,15 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     final next = _saved.where((q) => q.text != quote.text).toList();
     setState(() => _saved = next);
     await StorageService.instance.writeFavorites(next.map((q) => q.text).toList());
+  }
+
+  Future<void> _share(Quote quote) async {
+    HapticFeedback.selectionClick();
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box != null
+        ? box.localToGlobal(Offset.zero) & box.size
+        : null;
+    await const ShareService().share(quote, sharePositionOrigin: origin);
   }
 
   @override
@@ -88,6 +98,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                             itemBuilder: (_, i) => _SavedTile(
                               quote: _saved[i],
                               onRemove: () => _remove(_saved[i]),
+                              onShare: () => _share(_saved[i]),
                             ),
                             separatorBuilder: (_, __) => const SizedBox(height: 14),
                             itemCount: _saved.length,
@@ -102,10 +113,15 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 }
 
 class _SavedTile extends StatelessWidget {
-  const _SavedTile({required this.quote, required this.onRemove});
+  const _SavedTile({
+    required this.quote,
+    required this.onRemove,
+    required this.onShare,
+  });
 
   final Quote quote;
   final VoidCallback onRemove;
+  final VoidCallback onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -145,10 +161,19 @@ class _SavedTile extends StatelessWidget {
               ],
             ),
           ),
-          IconButton(
-            tooltip: 'Remove',
-            onPressed: onRemove,
-            icon: const Icon(Icons.favorite, color: AppPalette.accent),
+          Column(
+            children: [
+              IconButton(
+                tooltip: 'Send to someone',
+                onPressed: onShare,
+                icon: const Icon(Icons.ios_share_rounded, color: AppPalette.ink),
+              ),
+              IconButton(
+                tooltip: 'Remove',
+                onPressed: onRemove,
+                icon: const Icon(Icons.favorite, color: AppPalette.accent),
+              ),
+            ],
           ),
         ],
       ),

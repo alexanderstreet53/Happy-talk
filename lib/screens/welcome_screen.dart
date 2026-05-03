@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../widgets/app_logo.dart';
 import '../widgets/gradient_background.dart';
 import '../widgets/primary_button.dart';
 import 'quiz_screen.dart';
@@ -27,9 +28,19 @@ class WelcomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('happy talk',
-                    style: text.bodyMedium?.copyWith(
-                        letterSpacing: 1.6, color: AppPalette.ink.withOpacity(0.55))),
+                Row(
+                  children: [
+                    const AppLogo(size: 44, showShadow: false),
+                    const SizedBox(width: 12),
+                    Text(
+                      'happy talk',
+                      style: text.bodyMedium?.copyWith(
+                        letterSpacing: 1.6,
+                        color: AppPalette.ink.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 24),
                 Text(
                   'a softer way\nto talk to\nyourself.',
