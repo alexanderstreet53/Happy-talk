@@ -18,7 +18,11 @@ fi
 
 export PATH="$FLUTTER_HOME/bin:$PATH"
 
-git config --global --add safe.directory "$(pwd)" || true
+# Vercel build images run as root. Git refuses to operate on dirs whose
+# owner uid differs from the current user, which makes Flutter unable to
+# read its own SDK revision (reports 0.0.0-unknown) and pub get fails.
+# Trust everything in CI.
+git config --global --add safe.directory '*'
 
 flutter --version
 flutter config --no-analytics --no-cli-animations >/dev/null
