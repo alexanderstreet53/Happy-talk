@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aladdin Health Dashboard — Prototype</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">◆</span>
+      <span class="brand-name">ALADDIN</span>
+      <span class="brand-sub">Health</span>
+    </div>
+
+    <nav class="tabs" id="tabs" role="tablist">
+      <button class="tab active" data-view="hub"      role="tab">Hub</button>
+      <button class="tab"        data-view="tree"     role="tab">Tree</button>
+      <button class="tab"        data-view="war-room" role="tab">War Room</button>
+      <button class="tab"        data-view="timeline" role="tab">Timeline</button>
+    </nav>
+
+    <div class="status-pill" id="globalStatus">
+      <span class="dot crit" aria-hidden="true"></span>
+      <span class="status-label" id="globalStatusLabel">DEGRADED · 1 P0 ACTIVE</span>
+      <span class="status-meta" id="globalStatusMeta">FW-NYC dual master · 47 clients impacted · 36m</span>
+    </div>
+  </header>
+
+  <main id="view" class="view" role="main"></main>
+
+  <footer class="footer">
+    <span>Prototype · mock data · not for production decisions</span>
+    <span class="now" id="nowClock"></span>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
