@@ -335,6 +335,7 @@
   // model for managing the same incident.
   // -------------------------------------------------------------------------
   const WAR_VARIATIONS = [
+    // Original 7
     { id: 'operational', label: 'Operational',     render: renderWarOperational, hint: '3-pane operations' },
     { id: 'commander',   label: 'Commander',       render: renderWarCommander,   hint: 'Coordination & decisions' },
     { id: 'diagnostic',  label: 'Diagnostic',      render: renderWarDiagnostic,  hint: 'Hypothesis-driven RCA' },
@@ -342,6 +343,27 @@
     { id: 'trace',       label: 'Trace',           render: renderWarTrace,       hint: 'Span-by-span waterfall' },
     { id: 'cost',        label: 'Cost Burn',       render: renderWarCost,        hint: 'Dollars per minute' },
     { id: 'replay',      label: 'Replay',          render: renderWarReplay,      hint: 'Time-scrubber forensics' },
+    // 20 new
+    { id: 'ai',          label: 'AI Watchdog',     render: renderWarAI,          hint: 'Auto-RCA narrative · Datadog/Dynatrace pattern' },
+    { id: 'mesh',        label: 'Service Mesh',    render: renderWarMesh,        hint: 'Animated traffic flow · Vizceral pattern' },
+    { id: 'sankey',      label: 'Sankey Flow',     render: renderWarSankey,      hint: 'Left→right impact propagation' },
+    { id: 'healthgrid',  label: 'Health Grid',     render: renderWarHealthGrid,  hint: 'Services × regions · AWS Health pattern' },
+    { id: 'noc',         label: 'NOC Wall',        render: renderWarNOC,         hint: 'TV-distance glanceable' },
+    { id: 'statuspage',  label: 'Status Page',     render: renderWarStatusPage,  hint: 'Customer-facing · Atlassian pattern' },
+    { id: 'desks',       label: 'Trade Desks',     render: renderWarDesks,       hint: 'Per-desk floor view' },
+    { id: 'geo',         label: 'Geographic',      render: renderWarGeo,         hint: 'World map of impact' },
+    { id: 'pager',       label: 'Pager',           render: renderWarPager,       hint: 'On-call · PagerDuty pattern' },
+    { id: 'comms',       label: 'Comms',           render: renderWarComms,       hint: 'Stakeholder drafts' },
+    { id: 'compliance',  label: 'Compliance',      render: renderWarCompliance,  hint: 'Regulatory reportable events' },
+    { id: 'risk',        label: 'Risk Officer',    render: renderWarRisk,        hint: 'VaR & exposure during outage' },
+    { id: 'slo',         label: 'SLO Burn',        render: renderWarSLO,         hint: 'Error budget · Google SRE pattern' },
+    { id: 'golden',      label: 'Golden Signals',  render: renderWarGolden,      hint: 'Latency/Traffic/Errors/Saturation' },
+    { id: 'red',         label: 'RED · USE',       render: renderWarRED,         hint: 'Wilkie · Brendan Gregg patterns' },
+    { id: 'heatmap',     label: 'Latency Heatmap', render: renderWarHeatmap,     hint: '2D distribution over time' },
+    { id: 'capacity',    label: 'Capacity',        render: renderWarCapacity,    hint: 'Saturation forecast' },
+    { id: 'change',      label: 'Change Log',      render: renderWarChange,      hint: 'Recent deploys × incident' },
+    { id: 'probes',      label: 'Synthetic',       render: renderWarProbes,      hint: 'Canary tests grid' },
+    { id: 'postmortem',  label: 'Post-Mortem',     render: renderWarPostmortem,  hint: 'Auto-drafted · 5 whys' },
   ];
 
   let activeWarVariation = 'operational';
@@ -1029,6 +1051,902 @@
       el('div', { class: 'name', text: name }),
       el('div', { class: `val ${status}`, text: labels[status] || status.toUpperCase() }),
     ]);
+  }
+
+  // =========================================================================
+  // 20 ADDITIONAL WAR ROOM VARIATIONS
+  // =========================================================================
+
+  // -- 8. AI Watchdog (Datadog Watchdog / Dynatrace Davis pattern) -----------
+  function renderWarAI(container) {
+    const a = D.aiNarrative;
+    const banner = el('section', { class: 'ai-banner' }, [
+      el('div', { class: 'ai-icon', text: 'AI' }),
+      el('div', {}, [
+        el('div', { style: 'font-weight: 600; color: var(--text); font-size: 14px;', text: a.title }),
+        el('div', { style: 'color: var(--text-soft); font-size: 12px; margin-top: 4px;',
+          text: 'Pattern matched against 482 historical incidents · 12 within similarity > 0.7' }),
+      ]),
+      el('div', { class: 'ai-confidence' }, [
+        el('div', { class: 'num', text: `${(a.confidence * 100).toFixed(0)}%` }),
+        el('div', { class: 'label', text: 'confidence' }),
+      ]),
+    ]);
+    const summary = el('div', { class: 'ai-summary', text: a.summary });
+
+    const recCard = el('div', { class: 'card' }, [
+      cardHead('Recommended actions'),
+      (() => {
+        const wrap = el('div', { class: 'ai-rec-list' });
+        a.recommended.forEach((r) => wrap.append(
+          el('div', { class: 'ai-rec-row' }, [
+            el('div', {}, [
+              el('div', { style: 'color: var(--text); font-weight: 500;', text: r.action }),
+              el('div', { class: 'ai-rec-rationale', text: r.rationale }),
+            ]),
+            el('div', { class: 'ai-rec-conf', text: `${(r.confidence * 100).toFixed(0)}%` }),
+          ])
+        ));
+        return wrap;
+      })(),
+      el('div', { class: 'var-section-label', style: 'margin-top: 14px;', text: 'Explicitly NOT doing' }),
+      (() => {
+        const wrap = el('div', { class: 'ai-rec-list' });
+        a.notDoing.forEach((r) => wrap.append(
+          el('div', { class: 'ai-rec-row dont' }, [
+            el('div', {}, [
+              el('div', { style: 'color: var(--text-muted); font-weight: 500;', text: '✗ ' + r.action }),
+              el('div', { class: 'ai-rec-rationale', text: r.rationale }),
+            ]),
+            el('div', { class: 'ai-rec-conf', text: '—' }),
+          ])
+        ));
+        return wrap;
+      })(),
+    ]);
+
+    const similarCard = el('div', { class: 'card' }, [
+      cardHead('Similar past incidents'),
+      ...a.similar.map((s) =>
+        el('div', { class: 'ai-similar-row' }, [
+          el('span', { class: 'ai-similar-id', text: s.id }),
+          el('span', { class: 'ai-similar-sim', text: `${(s.similarity * 100).toFixed(0)}%` }),
+          el('span', { style: 'color: var(--text-soft);', text: s.resolution }),
+          el('span', { style: 'color: var(--text-muted); text-align: right;', text: `${s.durMin}m` }),
+        ])
+      ),
+    ]);
+
+    container.append(banner, summary, el('div', { class: 'var-grid-2' }, [recCard, similarCard]));
+  }
+
+  // -- 9. Service Mesh — animated Vizceral-style flow ----------------------
+  function renderWarMesh(container) {
+    const wrap = el('div', { class: 'mesh-wrap' });
+    const W = 1200, H = 600;
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet' });
+
+    // Layered layout: clients | firewalls | dcs | services | outcomes
+    const cols = [
+      { x: 100, nodes: [
+        { id: 't1na', label: 'T1 N.America', y: 120, status: S.CRIT },
+        { id: 't1emea', label: 'T1 EMEA',     y: 220, status: S.OK },
+        { id: 't1apac', label: 'T1 APAC',     y: 320, status: S.OK },
+        { id: 'wealth', label: 'Wealth',      y: 420, status: S.OK },
+        { id: 'insurer', label: 'Insurers',   y: 520, status: S.OK },
+      ]},
+      { x: 360, nodes: [
+        { id: 'fw-nyc', label: 'FW-NYC',  y: 170, status: S.CRIT },
+        { id: 'fw-lon', label: 'FW-LON',  y: 320, status: S.OK },
+        { id: 'fw-tok', label: 'FW-TOK',  y: 470, status: S.OK },
+      ]},
+      { x: 620, nodes: [
+        { id: 'dc-nyc', label: 'DC NYC', y: 170, status: S.WARN },
+        { id: 'dc-lon', label: 'DC LON', y: 320, status: S.OK },
+        { id: 'dc-tok', label: 'DC TOK', y: 470, status: S.OK },
+      ]},
+      { x: 880, nodes: [
+        { id: 'trading',   label: 'Trading',   y: 130, status: S.CRIT },
+        { id: 'orders',    label: 'Orders',    y: 230, status: S.CRIT },
+        { id: 'risk',      label: 'Risk',      y: 330, status: S.OK },
+        { id: 'reporting', label: 'Reporting', y: 430, status: S.WARN },
+        { id: 'portfolio', label: 'Portfolio', y: 510, status: S.OK },
+      ]},
+      { x: 1100, nodes: [
+        { id: 'ok',       label: 'Healthy',   y: 220, status: S.OK },
+        { id: 'degraded', label: 'Degraded',  y: 320, status: S.WARN },
+        { id: 'failed',   label: 'Failed',    y: 420, status: S.CRIT },
+      ]},
+    ];
+    const all = {};
+    cols.forEach((c) => c.nodes.forEach((n) => { n.x = c.x; all[n.id] = n; }));
+
+    const edges = [
+      // Clients → firewalls
+      ['t1na','fw-nyc',S.CRIT], ['t1emea','fw-lon',S.OK], ['t1apac','fw-tok',S.OK],
+      ['wealth','fw-lon',S.OK], ['insurer','fw-nyc',S.WARN],
+      // Firewalls → DCs
+      ['fw-nyc','dc-nyc',S.CRIT], ['fw-lon','dc-lon',S.OK], ['fw-tok','dc-tok',S.OK],
+      // DCs → services
+      ['dc-nyc','trading',S.CRIT], ['dc-nyc','orders',S.CRIT], ['dc-nyc','reporting',S.WARN],
+      ['dc-lon','trading',S.OK], ['dc-lon','risk',S.OK], ['dc-lon','portfolio',S.OK],
+      ['dc-tok','trading',S.OK], ['dc-tok','risk',S.OK],
+      // Services → outcomes
+      ['trading','failed',S.CRIT], ['trading','degraded',S.WARN], ['trading','ok',S.OK],
+      ['orders','failed',S.CRIT], ['orders','ok',S.OK],
+      ['risk','ok',S.OK], ['portfolio','ok',S.OK],
+      ['reporting','degraded',S.WARN], ['reporting','ok',S.OK],
+    ];
+
+    edges.forEach(([a, b, status]) => {
+      const A = all[a], B = all[b];
+      if (!A || !B) return;
+      const cx1 = A.x + 80, cx2 = B.x - 30;
+      const path = `M ${A.x + 18} ${A.y} C ${cx1} ${A.y}, ${cx2} ${B.y}, ${B.x - 18} ${B.y}`;
+      svg.append(el('path', { d: path, class: `mesh-edge ${status}` }));
+      // Animated particle layer
+      svg.append(el('path', { d: path, class: `mesh-edge mesh-particle ${status}`, 'stroke-width': 3 }));
+    });
+
+    Object.values(all).forEach((n) => {
+      svg.append(el('circle', { cx: n.x, cy: n.y, r: 14, class: `mesh-node-circle ${n.status}`, 'stroke-width': 2 }));
+      svg.append(el('text', { x: n.x, y: n.y - 22, class: 'node-label', 'text-anchor': 'middle', text: n.label }));
+    });
+
+    wrap.append(svg);
+    wrap.append(el('div', { class: 'mesh-legend' }, [
+      el('div', {}, [el('span', { class: 'dot ok' }), ' healthy traffic']),
+      el('div', { style: 'margin-top: 4px' }, [el('span', { class: 'dot warn' }), ' degraded']),
+      el('div', { style: 'margin-top: 4px' }, [el('span', { class: 'dot crit' }), ' failing']),
+      el('div', { style: 'margin-top: 6px; color: var(--text-faint)', text: 'Particle speed scales with degradation' }),
+    ]));
+    container.append(wrap);
+  }
+
+  // -- 19. Sankey flow ------------------------------------------------------
+  function renderWarSankey(container) {
+    const wrap = el('div', { class: 'sankey-wrap' });
+    const W = 1200, H = 520;
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet' });
+
+    const layers = D.sankey.layers;
+    const flows = D.sankey.flows;
+    const layerXs = [80, 360, 640, 1100];
+    const nodeWidth = 14;
+
+    // Layout: each layer's total height proportional to total value; each node sized by value.
+    const layerLayouts = layers.map((nodes, i) => {
+      const total = nodes.reduce((s, n) => s + n.value, 0);
+      const padding = 12;
+      const usableH = H - padding * (nodes.length + 1);
+      let y = padding;
+      const out = nodes.map((n) => {
+        const h = Math.max(20, (n.value / total) * usableH);
+        const node = { ...n, x: layerXs[i], y, h, layer: i };
+        y += h + padding;
+        return node;
+      });
+      return out;
+    });
+    const allNodes = {};
+    layerLayouts.forEach((arr) => arr.forEach((n) => { allNodes[n.id] = n; }));
+
+    // Track in/out cursor offsets per node so multiple flows stack
+    const cursorOut = {}, cursorIn = {};
+    Object.values(allNodes).forEach((n) => { cursorOut[n.id] = 0; cursorIn[n.id] = 0; });
+
+    flows.forEach((f) => {
+      const a = allNodes[f.from], b = allNodes[f.to];
+      if (!a || !b) return;
+      // Each flow's thickness proportional to its value relative to the source's outflow.
+      const aTotalOut = flows.filter((x) => x.from === f.from).reduce((s, x) => s + x.value, 0);
+      const bTotalIn  = flows.filter((x) => x.to === f.to).reduce((s, x) => s + x.value, 0);
+      const aH = (f.value / aTotalOut) * a.h;
+      const bH = (f.value / bTotalIn) * b.h;
+      const ay0 = a.y + cursorOut[f.from]; const ay1 = ay0 + aH;
+      const by0 = b.y + cursorIn[f.to];    const by1 = by0 + bH;
+      cursorOut[f.from] += aH;
+      cursorIn[f.to]    += bH;
+      const x1 = a.x + nodeWidth, x2 = b.x;
+      const cp1 = (x1 + x2) / 2;
+      const path =
+        `M ${x1} ${ay0} C ${cp1} ${ay0}, ${cp1} ${by0}, ${x2} ${by0}` +
+        ` L ${x2} ${by1} C ${cp1} ${by1}, ${cp1} ${ay1}, ${x1} ${ay1} Z`;
+      svg.append(el('path', { d: path, class: `sankey-flow ${f.status}` }));
+    });
+
+    Object.values(allNodes).forEach((n) => {
+      svg.append(el('rect', { x: n.x, y: n.y, width: nodeWidth, height: n.h, class: `sankey-node-rect ${n.status}` }));
+      const labelX = n.layer === 0 ? n.x - 6 : n.x + nodeWidth + 6;
+      const anchor = n.layer === 0 ? 'end' : 'start';
+      svg.append(el('text', { x: labelX, y: n.y + n.h / 2 + 4, class: 'sankey-node-label', 'text-anchor': anchor, text: `${n.label}` }));
+      svg.append(el('text', { x: labelX, y: n.y + n.h / 2 + 18, class: 'sankey-node-label', 'text-anchor': anchor, style: 'fill: var(--text-muted); font-size: 10px;', text: `${n.value}` }));
+    });
+
+    wrap.append(svg);
+
+    const legend = el('div', { class: 'tree-legend', style: 'margin-top: 10px;' }, [
+      legendItem('ok', 'healthy delivery'),
+      legendItem('warn', 'degraded'),
+      legendItem('crit', 'failed'),
+      el('span', { class: 'muted', text: '· width ∝ client volume · click any flow to expand affected accounts' }),
+    ]);
+    container.append(wrap, legend);
+  }
+
+  // -- 6. AWS Health-style services × regions grid -------------------------
+  function renderWarHealthGrid(container) {
+    const g = D.healthGrid;
+    const wrap = el('div', { class: 'health-grid-wrap' });
+    const cols = `220px repeat(${g.regions.length}, 1fr)`;
+
+    const table = el('div', { class: 'health-grid-table', style: `display: grid; grid-template-columns: ${cols}; gap: 4px;` });
+    table.append(el('div', { class: 'health-grid-table th row-header', style: 'background: var(--bg-elev-2); padding: 10px; border-radius: var(--r-sm); color: var(--text-muted); font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;', text: 'Service' }));
+    g.regions.forEach((r) => table.append(el('div', { style: 'background: var(--bg-elev-2); padding: 10px; border-radius: var(--r-sm); color: var(--text-muted); font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; text-align: center;', text: r })));
+
+    g.services.forEach((svc) => {
+      table.append(el('div', { class: 'health-grid-table row-name', style: 'background: var(--bg-elev-2); padding: 14px 14px; border-radius: var(--r-sm); color: var(--text); font-weight: 500;', text: svc.name }));
+      svc.statuses.forEach((status) => {
+        const labels = { ok: 'OK', warn: 'DEGRADED', crit: 'IMPAIRED' };
+        table.append(el('div', { class: `health-grid-cell ${status}`, text: labels[status] || status.toUpperCase() }));
+      });
+    });
+    wrap.append(table);
+
+    const legend = el('div', { class: 'tree-legend', style: 'margin-top: 14px; justify-content: center;' }, [
+      legendItem('ok', 'Operational'),
+      legendItem('warn', 'Degraded performance'),
+      legendItem('crit', 'Service disruption'),
+      el('span', { class: 'muted', text: '· hover any cell for detail · pattern: AWS Service Health Dashboard' }),
+    ]);
+    container.append(wrap, legend);
+  }
+
+  // -- 7. NOC video wall — 4 huge tiles, TV-distance readable --------------
+  function renderWarNOC(container) {
+    const wall = el('div', { class: 'noc-wall' });
+    wall.append(
+      el('div', { class: 'noc-quad crit' }, [
+        el('div', { class: 'noc-quad-label', text: 'Aladdin Status' }),
+        el('div', { class: 'noc-quad-mega crit', text: 'P0' }),
+        el('div', { class: 'noc-quad-sub', text: 'NYC perimeter · dual firewall master · 36m' }),
+      ]),
+      el('div', { class: 'noc-quad crit' }, [
+        el('div', { class: 'noc-quad-label', text: 'Clients impacted' }),
+        el('div', { class: 'noc-quad-mega crit', text: '14' }),
+        el('div', { class: 'noc-quad-sub', text: 'all NYC tier-1 · trading + order routing' }),
+      ]),
+      el('div', { class: 'noc-quad warn' }, [
+        el('div', { class: 'noc-quad-label', text: 'Cost burn' }),
+        el('div', { class: 'noc-quad-mega warn', text: '$284K' }),
+        el('div', { class: 'noc-quad-sub', text: '$4,800/min · 4th highest of past 12mo' }),
+      ]),
+      el('div', { class: 'noc-quad' }, [
+        el('div', { class: 'noc-quad-label', text: 'ETA to mitigation' }),
+        el('div', { class: 'noc-quad-mega', text: '8m' }),
+        el('div', { class: 'noc-quad-sub', text: 'medium confidence · SEC demoted, monitoring' }),
+      ])
+    );
+    container.append(wall);
+  }
+
+  // -- 5. Atlassian Statuspage-style external view -------------------------
+  function renderWarStatusPage(container) {
+    const wrap = el('div', { class: 'statuspage-wrap' });
+    const banner = el('section', { class: 'statuspage-banner' }, [
+      el('span', { class: 'dot crit', style: 'width: 24px; height: 24px;' }),
+      el('div', {}, [
+        el('h2', { text: 'Some systems are experiencing issues' }),
+        el('div', { class: 'sub', text: 'We\'re investigating elevated latency in NYC-region order routing. Other regions and services are operating normally. Last updated 4 minutes ago.' }),
+      ]),
+    ]);
+
+    const compsCard = el('div', { class: 'card', style: 'padding: 0; background: var(--bg-elev-1);' });
+    compsCard.append(el('div', { style: 'padding: 14px 18px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 14px;', text: 'System status' }));
+    D.statusComponents.forEach((c) => {
+      const labels = { op: 'Operational', partial: 'Partial outage', major: 'Major outage' };
+      compsCard.append(
+        el('div', { class: 'statuspage-component-row' }, [
+          el('span', { style: 'color: var(--text); font-weight: 500;', text: c.name }),
+          el('span', { class: `statuspage-status-label ${c.status}`, text: labels[c.status] || c.status }),
+        ])
+      );
+    });
+
+    const histCard = el('div', { class: 'card', style: 'margin-top: 14px;' }, [
+      cardHead('Past 10 days'),
+      (() => {
+        const wrap2 = el('div', { class: 'statuspage-history' });
+        D.statusHistory.forEach((d) => {
+          const cls = d.incidents === 0 ? '' : (d.summary.includes('P0') || d.summary.includes('P1') ? 'crit' : 'warn');
+          wrap2.append(el('div', { class: `statuspage-history-cell ${cls}`, title: `${d.date} · ${d.summary}` }));
+        });
+        return wrap2;
+      })(),
+      el('div', { style: 'display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; color: var(--text-muted); margin-top: 6px;' }, [
+        el('span', { text: '10 days ago' }),
+        el('span', { text: 'today' }),
+      ]),
+    ]);
+
+    wrap.append(banner, compsCard, histCard);
+    container.append(wrap);
+  }
+
+  // -- 16. Trade desk floor --------------------------------------------------
+  function renderWarDesks(container) {
+    const grid = el('div', { class: 'desk-grid' });
+    D.tradingDesks.forEach((d) => {
+      const card = el('div', { class: `desk-card ${d.status}` }, [
+        el('div', { class: 'desk-name', text: d.desk }),
+        el('div', { class: 'desk-stats' }, [
+          el('div', { class: 'desk-stat' }, [
+            el('div', { class: 'num', text: String(d.traders) }),
+            el('div', { class: 'lbl', text: 'traders' }),
+          ]),
+          el('div', { class: 'desk-stat' }, [
+            el('div', { class: `num ${d.queued > 0 ? 'crit' : ''}`, text: String(d.queued) }),
+            el('div', { class: 'lbl', text: 'queued' }),
+          ]),
+          el('div', { class: 'desk-stat' }, [
+            el('div', { class: `num ${d.latencyMs > 200 ? 'crit' : d.latencyMs > 100 ? 'warn' : ''}`, text: `${d.latencyMs}` }),
+            el('div', { class: 'lbl', text: 'p95 ms' }),
+          ]),
+        ]),
+        d.note ? el('div', { class: 'desk-note', text: d.note }) : null,
+      ]);
+      grid.append(card);
+    });
+    container.append(grid);
+  }
+
+  // -- 17. Geographic impact -------------------------------------------------
+  function renderWarGeo(container) {
+    const wrap = el('div', { class: 'geo-impact-wrap' });
+    const map = el('div', { class: 'geo-mega-map' });
+    const W = 1000, H = 500;
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet' });
+    for (let lat = 100; lat < 500; lat += 100) svg.append(el('line', { x1: 0, y1: lat, x2: W, y2: lat, stroke: '#1e2640', 'stroke-dasharray': '2 6' }));
+    for (let lon = 100; lon < 1000; lon += 100) svg.append(el('line', { x1: lon, y1: 0, x2: lon, y2: H, stroke: '#1e2640', 'stroke-dasharray': '2 6' }));
+
+    // Failover lines from NYC to LON (red) and NYC to SYD (red)
+    const nyc = D.geoImpact.find((g) => g.region === 'NYC');
+    const lon = D.geoImpact.find((g) => g.region === 'LON');
+    const tok = D.geoImpact.find((g) => g.region === 'TOK');
+    const link = (a, b, color) => {
+      const x1 = (a.x / 100) * W, y1 = (a.y / 100) * H;
+      const x2 = (b.x / 100) * W, y2 = (b.y / 100) * H;
+      const cx = (x1 + x2) / 2, cy = Math.min(y1, y2) - 60;
+      svg.append(el('path', { d: `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`, stroke: color, 'stroke-width': 2, fill: 'none', opacity: 0.8 }));
+    };
+    link(nyc, lon, '#ef4444');
+    link(lon, tok, '#22c55e');
+    map.append(svg);
+
+    D.geoImpact.forEach((g) => {
+      const pin = el('div', { class: `geo-pin ${g.status}`, style: `left: ${g.x}%; top: ${g.y}%;` }, [
+        el('div', { class: 'ring' }),
+        el('div', { class: 'label', text: g.label }),
+      ]);
+      map.append(pin);
+    });
+
+    const list = el('div', { class: 'geo-region-list' });
+    D.geoImpact.forEach((g) => {
+      list.append(
+        el('div', { class: `geo-region-row ${g.status}` }, [
+          el('div', { class: 'geo-region-name', text: g.region }),
+          el('div', { class: 'geo-region-num' }, [
+            el('div', { class: `top ${g.affected > 0 ? 'crit' : ''}`, text: g.affected > 0 ? `${g.affected} clients impacted` : `${g.healthy} clients healthy` }),
+            el('div', { class: 'bot', text: `latency p95: ${g.latencyMs}ms` }),
+          ]),
+          el('span', { class: `dot ${g.status}` }),
+        ])
+      );
+    });
+
+    wrap.append(map, list);
+    container.append(wrap);
+  }
+
+  // -- 9. Pager / On-call view ----------------------------------------------
+  function renderWarPager(container) {
+    const onCallCard = el('div', { class: 'card' }, [
+      cardHead('On-call now'),
+      (() => {
+        const wrap = el('div', { class: 'pager-onCall' });
+        D.pagerView.onCall.forEach((p) => {
+          wrap.append(
+            el('div', { class: 'pager-row' }, [
+              el('div', { class: 'role-avatar', text: p.avatar }),
+              el('div', { class: 'pager-team' }, [p.team, el('span', { class: 'esc', text: `escalates after ${p.escalates}` })]),
+              el('div', { class: 'pager-person', text: p.person }),
+              el('div', { class: 'pager-phone', text: p.phone }),
+            ])
+          );
+        });
+        return wrap;
+      })(),
+    ]);
+
+    const pageHistCard = el('div', { class: 'card' }, [
+      cardHead('Pages sent · this incident'),
+      (() => {
+        const wrap = el('div');
+        D.pagerView.pages.forEach((p) => {
+          wrap.append(
+            el('div', { class: 'pager-page-row' }, [
+              el('div', { class: 'pager-page-time', text: p.time }),
+              el('div', { class: 'pager-page-target', text: p.target }),
+              el('div', { class: 'pager-page-ack', text: `✓ ${p.ackBy} · ${p.ackIn}` }),
+            ])
+          );
+        });
+        return wrap;
+      })(),
+    ]);
+
+    const policyCard = el('div', { class: 'card' }, [
+      cardHead('Escalation policy · "Network split-brain"'),
+      (() => {
+        const wrap = el('div', { class: 'pager-policy' });
+        D.pagerView.policy.forEach((s, i) =>
+          wrap.append(el('div', { class: 'pager-policy-step', text: `${i + 1}. ${s}` }))
+        );
+        return wrap;
+      })(),
+    ]);
+
+    container.append(el('div', { class: 'var-grid-2' }, [onCallCard, pageHistCard]));
+    container.append(el('div', { style: 'margin-top: 14px;' }, [policyCard]));
+  }
+
+  // -- 11. Stakeholder comms ----------------------------------------------
+  function renderWarComms(container) {
+    const wrap = el('div', { class: 'comms-wrap' });
+    D.commsAudiences.forEach((c) => {
+      wrap.append(
+        el('div', { class: 'comms-card' }, [
+          el('div', { class: 'comms-head' }, [
+            el('div', { class: 'comms-name', text: c.name }),
+            el('span', { class: `comms-status-pill ${c.status}`, text: c.status }),
+          ]),
+          el('div', { class: 'comms-meta', text: `v${c.version} · ${c.sentAt ? 'sent ' + c.sentAt : 'unsent'}` }),
+          el('div', { class: 'comms-draft', text: c.draft }),
+          el('div', { class: 'comms-actions' }, [
+            el('button', { class: 'comms-action primary', text: c.status === 'draft' ? 'Send' : 'Update' }),
+            el('button', { class: 'comms-action', text: 'History' }),
+            el('button', { class: 'comms-action', text: 'Diff' }),
+          ]),
+        ])
+      );
+    });
+    container.append(wrap);
+  }
+
+  // -- 14. Compliance ------------------------------------------------------
+  function renderWarCompliance(container) {
+    const reportCard = el('div', { class: 'card' }, [
+      cardHead('Reportable events'),
+      (() => {
+        const wrap = el('div');
+        D.compliance.reportable.forEach((r) => {
+          const tone = r.severity;
+          wrap.append(
+            el('div', { class: `compliance-row ${tone}` }, [
+              el('div', { class: 'compliance-framework', text: r.framework }),
+              el('div', { class: 'compliance-article', text: r.article }),
+              el('div', { class: 'compliance-what', text: r.what }),
+              el('div', { class: `compliance-status-pill ${r.status}`, text: r.status }),
+              el('div', { class: 'compliance-deadline', text: r.deadline }),
+            ])
+          );
+        });
+        return wrap;
+      })(),
+    ]);
+
+    const evidenceCard = el('div', { class: 'card', style: 'margin-top: 14px;' }, [
+      cardHead('Evidence captured · 7-year retention'),
+      (() => {
+        const wrap = el('div');
+        D.compliance.evidence.forEach((e) => {
+          wrap.append(
+            el('div', { class: 'evidence-row' }, [
+              el('span', { class: 'evidence-check', text: e.captured ? '✓' : '✗' }),
+              el('span', { class: 'evidence-name', text: e.item }),
+              el('span', { class: 'evidence-retention', text: e.retention }),
+            ])
+          );
+        });
+        return wrap;
+      })(),
+    ]);
+
+    container.append(reportCard, evidenceCard);
+  }
+
+  // -- 15. Risk officer view ------------------------------------------------
+  function renderWarRisk(container) {
+    const r = D.riskView;
+    const megaGrid = el('div', { class: 'risk-mega-grid' }, [
+      riskStat('Value at Risk',         r.varAtRisk,         'crit'),
+      riskStat('Open Positions',         String(r.positionsHeld), ''),
+      riskStat('Unhedged Exposure',      r.unhedgedExposure,  'warn'),
+      riskStat('Market Data Lag',         r.marketDataLag,     'warn'),
+    ]);
+
+    const assetCard = el('div', { class: 'card' }, [
+      cardHead('Exposure by asset class'),
+      (() => {
+        const wrap = el('div');
+        r.byAssetClass.forEach((a) => {
+          wrap.append(
+            el('div', { class: `risk-asset-row ${a.risk}` }, [
+              el('span', { class: 'risk-asset-name', text: a.asset }),
+              el('span', { class: 'risk-asset-num', text: String(a.positions) }),
+              el('span', { class: 'risk-asset-num', text: a.exposure }),
+              el('span', { class: `dot ${a.risk}` }),
+            ])
+          );
+        });
+        return wrap;
+      })(),
+    ]);
+
+    const contextCard = el('div', { class: 'card' }, [
+      cardHead('Market context · incident window'),
+      (() => {
+        const list = el('ul', { class: 'risk-context-list' });
+        r.marketContext.forEach((c) => list.append(el('li', { text: c })));
+        return list;
+      })(),
+    ]);
+
+    container.append(megaGrid, el('div', { class: 'var-grid-2' }, [assetCard, contextCard]));
+  }
+  function riskStat(label, value, tone) {
+    return el('div', { class: 'risk-stat' }, [
+      el('div', { class: 'label', text: label }),
+      el('div', { class: `value ${tone}`, text: value }),
+    ]);
+  }
+
+  // -- 1. SLO Burn rate ----------------------------------------------------
+  function renderWarSLO(container) {
+    const banner = el('section', { class: 'cmd-action-bar' }, [
+      el('div', {}, [
+        el('div', { class: 'cmd-action-label', text: 'Platform error budget posture · Q2 2026' }),
+        el('div', { class: 'cmd-action-text', text: '3 services burning > 5× budget · 2 services exhaust within 8h at current rate' }),
+      ]),
+      el('div'),
+      el('div', { style: 'font-family: var(--mono); font-size: 22px; color: var(--crit); font-weight: 700;', text: '14.2×' }),
+    ]);
+
+    const wrap = el('div');
+    D.sloServices.forEach((s) => {
+      const tone = s.burnRate > 5 ? 'crit' : s.burnRate > 1 ? 'warn' : 'ok';
+      const tierTone = s.tier;
+      wrap.append(
+        el('div', { class: `slo-row ${tone}` }, [
+          el('div', { class: 'slo-name' }, [s.name, el('span', { class: 'slo', text: s.slo })]),
+          el('div', {}, [
+            el('div', { class: `slo-burn-num ${tone}`, text: `${s.burnRate.toFixed(1)}×` }),
+            el('div', { class: 'slo-burn-label', text: 'burn rate' }),
+          ]),
+          el('div', { class: 'slo-budget-bar' }, [
+            el('div', { class: 'slo-budget-fill', style: `width: ${s.budgetPct}%` }),
+            el('div', { class: 'slo-budget-pace', style: 'left: 38%' }),
+          ]),
+          el('div', { class: `slo-eta ${tone}` }, [
+            'exhausts in ',
+            el('strong', { text: s.exhaustsIn }),
+          ]),
+          el('span', { class: `slo-tier-pill pill-${tierTone}`, text: tierTone }),
+        ])
+      );
+    });
+    container.append(banner, wrap);
+  }
+
+  // -- 2. Golden signals ----------------------------------------------------
+  function renderWarGolden(container) {
+    const wrap = el('div', { class: 'golden-grid' });
+    D.goldenSignals.forEach((g) => {
+      const latencyTone = g.latency.p95 > g.latency.slo * 5 ? 'crit' : g.latency.p95 > g.latency.slo ? 'warn' : 'ok';
+      const errTone     = g.errors.pct > g.errors.slo * 5 ? 'crit' : g.errors.pct > g.errors.slo ? 'warn' : 'ok';
+      const trafficTone = g.traffic.rps < g.traffic.baseline * 0.7 ? 'warn' : 'ok';
+      const satTone     = g.saturation.pct > g.saturation.slo ? 'warn' : 'ok';
+      wrap.append(
+        el('div', { class: `golden-card ${g.status}` }, [
+          el('div', { class: 'golden-name', text: g.name }),
+          el('div', { class: 'golden-quad' }, [
+            el('div', { class: 'golden-quad-cell' }, [
+              el('div', { class: 'label', text: 'Latency' }),
+              el('div', { class: `val ${latencyTone}`, text: `${g.latency.p95}ms` }),
+              el('div', { class: 'sub', text: `p50 ${g.latency.p50} / p99 ${g.latency.p99} · SLO < ${g.latency.slo}` }),
+            ]),
+            el('div', { class: 'golden-quad-cell' }, [
+              el('div', { class: 'label', text: 'Traffic' }),
+              el('div', { class: `val ${trafficTone}`, text: `${(g.traffic.rps / 1000).toFixed(1)}k rps` }),
+              el('div', { class: 'sub', text: `baseline ${(g.traffic.baseline / 1000).toFixed(1)}k` }),
+            ]),
+            el('div', { class: 'golden-quad-cell' }, [
+              el('div', { class: 'label', text: 'Errors' }),
+              el('div', { class: `val ${errTone}`, text: `${g.errors.pct}%` }),
+              el('div', { class: 'sub', text: `SLO < ${g.errors.slo}%` }),
+            ]),
+            el('div', { class: 'golden-quad-cell' }, [
+              el('div', { class: 'label', text: 'Saturation' }),
+              el('div', { class: `val ${satTone}`, text: `${g.saturation.pct}%` }),
+              el('div', { class: 'sub', text: `limit ${g.saturation.slo}%` }),
+            ]),
+          ]),
+        ])
+      );
+    });
+    container.append(wrap);
+  }
+
+  // -- 3. RED + USE ---------------------------------------------------------
+  function renderWarRED(container) {
+    const redCard = el('div', { class: 'card' }, [
+      cardHead('RED method · Tom Wilkie / Grafana'),
+      (() => {
+        const t = el('table', { class: 'tablet' });
+        const head = el('thead', {}, [el('tr', {}, [
+          el('th', { text: 'Service' }), el('th', { text: 'Rate' }), el('th', { text: 'Errors' }), el('th', { text: 'Duration p99' }), el('th', { text: '' }),
+        ])]);
+        const body = el('tbody');
+        D.redMethod.forEach((r) => {
+          body.append(el('tr', {}, [
+            el('td', { text: r.service }),
+            el('td', { class: 'num', text: r.rate }),
+            el('td', { class: `num ${r.status}`, text: r.errors }),
+            el('td', { class: `num ${r.status}`, text: r.dur_p99 }),
+            el('td', {}, [el('span', { class: `pill pill-${r.status}`, text: r.status })]),
+          ]));
+        });
+        t.append(head, body);
+        return t;
+      })(),
+    ]);
+
+    const useCard = el('div', { class: 'card' }, [
+      cardHead('USE method · Brendan Gregg'),
+      (() => {
+        const t = el('table', { class: 'tablet' });
+        const head = el('thead', {}, [el('tr', {}, [
+          el('th', { text: 'Resource' }), el('th', { text: 'Util %' }), el('th', { text: 'Saturation' }), el('th', { text: 'Errors' }), el('th', { text: '' }),
+        ])]);
+        const body = el('tbody');
+        D.useMethod.forEach((u) => {
+          body.append(el('tr', {}, [
+            el('td', { text: u.resource }),
+            el('td', { class: `num ${u.util > 90 ? 'crit' : u.util > 75 ? 'warn' : ''}`, text: `${u.util}%` }),
+            el('td', { class: `num ${u.sat === 'critical' ? 'crit' : u.sat === 'high' ? 'warn' : ''}`, text: u.sat }),
+            el('td', { class: `num ${u.errors > 0 ? 'crit' : ''}`, text: String(u.errors) }),
+            el('td', {}, [el('span', { class: `pill pill-${u.status}`, text: u.status })]),
+          ]));
+        });
+        t.append(head, body);
+        return t;
+      })(),
+    ]);
+
+    container.append(el('div', { class: 'var-grid-2' }, [redCard, useCard]));
+  }
+
+  // -- 18. Latency 2D heatmap ----------------------------------------------
+  function renderWarHeatmap(container) {
+    const h = D.latencyHeatmap;
+    const wrap = el('div', { class: 'heatmap-2d-wrap' });
+    wrap.append(el('div', { class: 'var-section-label', text: 'Latency distribution · last 30 minutes · NYC trading' }));
+
+    const heat = el('div', { class: 'heatmap-2d' });
+    h.matrix.forEach((row, l) => {
+      heat.append(el('div', { class: 'heatmap-2d-rowlabel', text: h.latencyLabels[l] }));
+      const rowEl = el('div', { class: 'heatmap-2d-row', style: `grid-template-columns: repeat(${row.length}, 1fr);` });
+      row.forEach((density) => {
+        const intensity = Math.min(1, density);
+        const isHigh = l < 6; // top half = high latency
+        const color = isHigh
+          ? `rgba(239, 68, 68, ${intensity})`
+          : `rgba(34, 197, 94, ${intensity * 0.8})`;
+        rowEl.append(el('div', { class: 'heatmap-2d-cell', style: `background: ${color};`, title: `density ${density.toFixed(2)}` }));
+      });
+      heat.append(rowEl);
+    });
+    wrap.append(heat);
+
+    wrap.append(el('div', { class: 'heatmap-2d-axis' }, [
+      el('div'),
+      el('div', { class: 'ticks' }, h.timeLabels.map((t) => el('span', { text: t }))),
+    ]));
+
+    const incidentLeftPct = (22 / 30) * 100;
+    wrap.append(
+      el('div', { class: 'heatmap-incident-marker' }, [
+        el('div', { class: 'marker', style: `left: calc(110px + 10px + (100% - 120px) * ${incidentLeftPct / 100});`, text: ' ← incident starts (08:14 ET)' }),
+      ])
+    );
+
+    container.append(wrap);
+  }
+
+  // -- 12. Capacity forecast -----------------------------------------------
+  function renderWarCapacity(container) {
+    D.capacityForecast.forEach((c) => {
+      const W = 600, H = 50;
+      const all = c.history.concat(c.forecast);
+      const max = Math.max(c.limit, ...all);
+      const points = all.map((v, i) => {
+        const x = (i / (all.length - 1)) * W;
+        const y = H - (v / max) * (H - 4) - 2;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      });
+      const histPts = points.slice(0, c.history.length).join(' ');
+      const fcPts = points.slice(c.history.length - 1).join(' ');
+      const limitY = H - (c.limit / max) * (H - 4) - 2;
+      const svg = el('svg', { class: 'cap-chart', viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'none' });
+      svg.append(el('line', { x1: 0, y1: limitY, x2: W, y2: limitY, stroke: '#ef4444', 'stroke-width': '1', 'stroke-dasharray': '4 4', opacity: '0.6' }));
+      svg.append(el('polyline', { points: histPts, fill: 'none', stroke: '#60a5fa', 'stroke-width': '1.5' }));
+      svg.append(el('polyline', { points: fcPts, fill: 'none', stroke: '#f59e0b', 'stroke-width': '1.5', 'stroke-dasharray': '3 3' }));
+
+      container.append(
+        el('div', { class: `cap-row ${c.risk}` }, [
+          el('div', { class: 'cap-head' }, [
+            el('div', { class: 'cap-name', text: c.resource }),
+            el('div', { class: `cap-current ${c.risk}` }, [`${c.current}`, el('span', { style: 'font-size: 11px; color: var(--text-muted); margin-left: 4px;', text: `/ ${c.limit}` })]),
+            el('div', { class: `cap-eta ${c.risk}` }, ['will hit limit at ', el('strong', { text: c.willHitAt })]),
+          ]),
+          svg,
+        ])
+      );
+    });
+    container.append(el('div', { class: 'tree-legend', style: 'margin-top: 14px;' }, [
+      el('span', { class: 'item' }, [el('span', { style: 'display: inline-block; width: 18px; height: 2px; background: var(--accent);' }), el('span', { text: 'observed' })]),
+      el('span', { class: 'item' }, [el('span', { style: 'display: inline-block; width: 18px; height: 2px; background: var(--warn); border-bottom: 1px dashed' }), el('span', { text: 'forecast' })]),
+      el('span', { class: 'item' }, [el('span', { style: 'display: inline-block; width: 18px; height: 1px; border-top: 1px dashed var(--crit);' }), el('span', { text: 'limit' })]),
+    ]));
+  }
+
+  // -- 13. Change correlation ---------------------------------------------
+  function renderWarChange(container) {
+    const card = el('div', { class: 'card' }, [
+      cardHead('Recent changes · sorted by correlation with current incident'),
+      (() => {
+        const t = el('table', { class: 'change-table' });
+        const head = el('thead', {}, [el('tr', {}, [
+          el('th', { text: 'When' }), el('th', { text: 'Type' }), el('th', { text: 'Change' }), el('th', { text: 'Author' }), el('th', { text: 'Correlation' }),
+        ])]);
+        const body = el('tbody');
+        const sorted = [...D.recentChanges].sort((a, b) => b.correlation - a.correlation);
+        sorted.forEach((c) => {
+          body.append(el('tr', {}, [
+            el('td', { class: 'change-time', text: c.time }),
+            el('td', {}, [el('span', { class: `change-type-pill ${c.type}`, text: c.type })]),
+            el('td', { text: c.name, style: 'color: var(--text);' }),
+            el('td', { text: c.author }),
+            el('td', {}, [
+              el('span', { class: 'change-corr-bar' }, [
+                el('span', { class: 'change-corr-bar-fill', style: `width: ${c.correlation * 100}%; display: block;` }),
+              ]),
+              el('span', { class: 'change-corr-num', text: `${(c.correlation * 100).toFixed(0)}%` }),
+            ]),
+          ]));
+        });
+        t.append(head, body);
+        return t;
+      })(),
+    ]);
+    const note = el('div', { class: 'card', style: 'margin-top: 14px;' }, [
+      cardHead('Diagnostic note'),
+      el('div', { style: 'font-size: 12px; color: var(--text-soft); line-height: 1.65; padding: 4px;' }, [
+        'No high-correlation change identified.',
+        el('br'), el('br'),
+        'The vendor advisory acknowledged at 08:12 (',
+        el('span', { style: 'color: var(--warn); font-family: var(--mono);', text: 'corr 0.42' }),
+        ') is the strongest candidate but no action was taken.',
+        el('br'), el('br'),
+        'Combined with the absence of recent FW config changes, this',
+        ' suggests the trigger is environmental (load, firmware bug) rather than a deploy regression.',
+      ]),
+    ]);
+    container.append(card, note);
+  }
+
+  // -- 20. Synthetic probes ------------------------------------------------
+  function renderWarProbes(container) {
+    const grid = el('div', { class: 'probe-grid' });
+    D.syntheticProbes.forEach((p) => {
+      const sparkRow = el('div', { class: 'probe-spark-row' });
+      p.spark.forEach((s) => sparkRow.append(el('div', { class: `probe-spark-cell ${s > 0 ? 'pass' : 'fail'}` })));
+      grid.append(
+        el('div', { class: `probe-tile ${p.status}` }, [
+          el('div', { class: 'probe-tile-head' }, [
+            el('span', { class: 'probe-tile-name', text: p.name }),
+            el('span', { class: `probe-status-pill ${p.status}`, text: p.status }),
+          ]),
+          sparkRow,
+          el('div', { class: 'probe-tile-meta' }, [
+            el('span', { text: `every ${p.interval}` }),
+            el('span', { text: `pass: ${p.passRate}` }),
+          ]),
+          el('div', { class: 'probe-tile-meta' }, [
+            el('span', { style: 'color: var(--text-soft);', text: `last success: ${p.lastSuccess}` }),
+            el('span', {}),
+          ]),
+        ])
+      );
+    });
+    container.append(grid);
+  }
+
+  // -- 10. Post-Mortem draft -----------------------------------------------
+  function renderWarPostmortem(container) {
+    const p = D.postMortem;
+    const wrap = el('div', { class: 'pm-wrap' });
+
+    wrap.append(el('section', { class: 'pm-section' }, [
+      el('h3', {}, ['Summary', el('span', { class: 'draft-tag', text: 'DRAFT — auto-populated' })]),
+      el('p', { text: p.summary }),
+    ]));
+
+    wrap.append(el('section', { class: 'pm-section' }, [
+      el('h3', { text: '5 Whys' }),
+      ...p.fiveWhys.map((w, i) =>
+        el('div', { class: 'pm-why-row' }, [
+          el('div', { class: 'pm-why-num', text: `${i + 1}.` }),
+          el('div', { class: 'pm-why-q', text: w.q }),
+          el('div', { class: 'pm-why-a', text: w.a }),
+        ])
+      ),
+    ]));
+
+    wrap.append(el('section', { class: 'pm-section' }, [
+      el('h3', { text: 'Contributing factors' }),
+      (() => {
+        const list = el('ul', { class: 'pm-list' });
+        p.contributing.forEach((c) => list.append(el('li', { text: c })));
+        return list;
+      })(),
+    ]));
+
+    wrap.append(el('section', { class: 'pm-section' }, [
+      el('h3', { text: 'Action items' }),
+      ...p.actionItems.map((a) =>
+        el('div', { class: 'pm-action-row' }, [
+          el('div', { class: 'pm-action-owner', text: a.owner }),
+          el('div', { class: 'pm-action-due', text: a.due }),
+          el('div', { class: 'pm-action-text', text: a.text }),
+        ])
+      ),
+    ]));
+
+    wrap.append(el('section', { class: 'pm-section' }, [
+      el('h3', { text: 'Reflection' }),
+      el('div', { class: 'pm-good-bad' }, [
+        el('div', {}, [
+          el('div', { class: 'var-section-label', style: 'color: var(--ok);', text: 'What went well' }),
+          (() => {
+            const list = el('ul', { class: 'pm-list' });
+            p.wentWell.forEach((c) => list.append(el('li', { text: c })));
+            return list;
+          })(),
+        ]),
+        el('div', {}, [
+          el('div', { class: 'var-section-label', style: 'color: var(--crit);', text: "What didn't" }),
+          (() => {
+            const list = el('ul', { class: 'pm-list' });
+            p.didntGoWell.forEach((c) => list.append(el('li', { text: c })));
+            return list;
+          })(),
+        ]),
+      ]),
+    ]));
+
+    container.append(wrap);
   }
 
   function metaSpan(label, value) {
