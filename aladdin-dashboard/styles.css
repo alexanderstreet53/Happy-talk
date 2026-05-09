@@ -1576,6 +1576,80 @@ body {
   color: var(--text-muted);
 }
 
+/* Realistic-scale mesh additions ---------------------------------------- */
+
+.mesh-wrap-large { height: calc(100vh - 220px); min-height: 760px; }
+
+.mesh-stat-strip {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 6px;
+  z-index: 5;
+}
+.mesh-stat-tile {
+  background: rgba(10, 14, 26, 0.92);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 8px 14px;
+  text-align: center;
+  font-family: var(--mono);
+  min-width: 78px;
+}
+.mesh-stat-tile.crit { border-color: rgba(239, 68, 68, 0.5); background: rgba(239, 68, 68, 0.08); }
+.mesh-stat-num { font-size: 20px; font-weight: 700; color: var(--text); line-height: 1; letter-spacing: -0.02em; }
+.mesh-stat-tile.crit .mesh-stat-num { color: var(--crit); }
+.mesh-stat-label {
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 4px;
+}
+
+.mesh-group-label { fill: var(--text-soft); font-family: var(--mono); font-size: 11px; font-weight: 600; }
+.mesh-group-label.crit { fill: var(--crit); }
+.mesh-group-label.warn { fill: var(--warn); }
+.mesh-group-count { fill: var(--text-muted); font-family: var(--mono); font-size: 9px; }
+
+.mesh-client-dot { stroke-width: 0.5; }
+.mesh-client-dot.ok   { fill: rgba(34, 197, 94, 0.65);  stroke: rgba(34, 197, 94, 0.85); }
+.mesh-client-dot.warn { fill: var(--warn);              stroke: rgba(245, 158, 11, 0.95); }
+.mesh-client-dot.crit { fill: var(--crit);              stroke: rgba(239, 68, 68, 0.95); }
+
+.mesh-fan-edge { stroke-width: 0.6; fill: none; }
+.mesh-fan-edge.ok   { stroke: rgba(34, 197, 94, 0.07); }
+.mesh-fan-edge.warn { stroke: rgba(245, 158, 11, 0.35); }
+.mesh-fan-edge.crit { stroke: rgba(239, 68, 68, 0.55); }
+
+.mesh-app-server { fill: rgba(34, 197, 94, 0.55); }
+.mesh-app-server.crit { fill: var(--crit); }
+.mesh-app-server.warn { fill: var(--warn); }
+
+.mesh-cloud-label { fill: var(--text-muted); font-family: var(--mono); font-size: 9px; }
+.mesh-node-sub    { fill: var(--text-muted); font-family: var(--mono); font-size: 9px; }
+
+.mesh-svc-rect.ok   { fill: rgba(34, 197, 94, 0.15);  stroke: rgba(34, 197, 94, 0.45); }
+.mesh-svc-rect.warn { fill: rgba(245, 158, 11, 0.18); stroke: rgba(245, 158, 11, 0.55); }
+.mesh-svc-rect.crit { fill: rgba(239, 68, 68, 0.18);  stroke: rgba(239, 68, 68, 0.6); }
+.mesh-svc-label     { fill: var(--text); font-family: var(--mono); font-size: 11px; font-weight: 500; }
+
+.mesh-edge-thin { stroke-width: 0.6; fill: none; }
+.mesh-edge-thin.ok   { stroke: rgba(34, 197, 94, 0.18); }
+.mesh-edge-thin.warn { stroke: rgba(245, 158, 11, 0.45); }
+.mesh-edge-thin.crit { stroke: rgba(239, 68, 68, 0.55); }
+
+.mesh-edge-dr { stroke: rgba(96, 165, 250, 0.4); stroke-dasharray: 4 4; fill: none; stroke-width: 1; }
+
+.mesh-layer-label {
+  fill: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 /* 5. STATUS PAGE --------------------------------------------------------- */
 
 .statuspage-wrap { max-width: 940px; margin: 0 auto; }

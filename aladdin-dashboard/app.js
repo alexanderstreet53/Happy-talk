@@ -1120,87 +1120,220 @@
     container.append(banner, summary, el('div', { class: 'var-grid-2' }, [recCard, similarCard]));
   }
 
-  // -- 9. Service Mesh — animated Vizceral-style flow ----------------------
+  // -- 9. Service Mesh — realistic Aladdin scale ---------------------------
+  // 200 clients in 8 regional groups → 6 firewall pairs → 6 shared DCs (with
+  // DR overlap) → ~40,000 dedicated app servers (rendered as clouds) →
+  // 8 shared platform services. Vizceral-style animated particle flow.
   function renderWarMesh(container) {
-    const wrap = el('div', { class: 'mesh-wrap' });
-    const W = 1200, H = 600;
+    const m = D.meshTopology;
+    const wrap = el('div', { class: 'mesh-wrap mesh-wrap-large' });
+    const W = 1700, H = 1080;
     const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet' });
 
-    // Layered layout: clients | firewalls | dcs | services | outcomes
-    const cols = [
-      { x: 100, nodes: [
-        { id: 't1na', label: 'T1 N.America', y: 120, status: S.CRIT },
-        { id: 't1emea', label: 'T1 EMEA',     y: 220, status: S.OK },
-        { id: 't1apac', label: 'T1 APAC',     y: 320, status: S.OK },
-        { id: 'wealth', label: 'Wealth',      y: 420, status: S.OK },
-        { id: 'insurer', label: 'Insurers',   y: 520, status: S.OK },
-      ]},
-      { x: 360, nodes: [
-        { id: 'fw-nyc', label: 'FW-NYC',  y: 170, status: S.CRIT },
-        { id: 'fw-lon', label: 'FW-LON',  y: 320, status: S.OK },
-        { id: 'fw-tok', label: 'FW-TOK',  y: 470, status: S.OK },
-      ]},
-      { x: 620, nodes: [
-        { id: 'dc-nyc', label: 'DC NYC', y: 170, status: S.WARN },
-        { id: 'dc-lon', label: 'DC LON', y: 320, status: S.OK },
-        { id: 'dc-tok', label: 'DC TOK', y: 470, status: S.OK },
-      ]},
-      { x: 880, nodes: [
-        { id: 'trading',   label: 'Trading',   y: 130, status: S.CRIT },
-        { id: 'orders',    label: 'Orders',    y: 230, status: S.CRIT },
-        { id: 'risk',      label: 'Risk',      y: 330, status: S.OK },
-        { id: 'reporting', label: 'Reporting', y: 430, status: S.WARN },
-        { id: 'portfolio', label: 'Portfolio', y: 510, status: S.OK },
-      ]},
-      { x: 1100, nodes: [
-        { id: 'ok',       label: 'Healthy',   y: 220, status: S.OK },
-        { id: 'degraded', label: 'Degraded',  y: 320, status: S.WARN },
-        { id: 'failed',   label: 'Failed',    y: 420, status: S.CRIT },
-      ]},
-    ];
-    const all = {};
-    cols.forEach((c) => c.nodes.forEach((n) => { n.x = c.x; all[n.id] = n; }));
+    // X positions for each layer
+    const X_CLIENT = 90;
+    const X_FW     = 720;
+    const X_DC     = 1020;
+    const X_APP    = 1280;
+    const X_SVC    = 1560;
 
-    const edges = [
-      // Clients → firewalls
-      ['t1na','fw-nyc',S.CRIT], ['t1emea','fw-lon',S.OK], ['t1apac','fw-tok',S.OK],
-      ['wealth','fw-lon',S.OK], ['insurer','fw-nyc',S.WARN],
-      // Firewalls → DCs
-      ['fw-nyc','dc-nyc',S.CRIT], ['fw-lon','dc-lon',S.OK], ['fw-tok','dc-tok',S.OK],
-      // DCs → services
-      ['dc-nyc','trading',S.CRIT], ['dc-nyc','orders',S.CRIT], ['dc-nyc','reporting',S.WARN],
-      ['dc-lon','trading',S.OK], ['dc-lon','risk',S.OK], ['dc-lon','portfolio',S.OK],
-      ['dc-tok','trading',S.OK], ['dc-tok','risk',S.OK],
-      // Services → outcomes
-      ['trading','failed',S.CRIT], ['trading','degraded',S.WARN], ['trading','ok',S.OK],
-      ['orders','failed',S.CRIT], ['orders','ok',S.OK],
-      ['risk','ok',S.OK], ['portfolio','ok',S.OK],
-      ['reporting','degraded',S.WARN], ['reporting','ok',S.OK],
-    ];
-
-    edges.forEach(([a, b, status]) => {
-      const A = all[a], B = all[b];
-      if (!A || !B) return;
-      const cx1 = A.x + 80, cx2 = B.x - 30;
-      const path = `M ${A.x + 18} ${A.y} C ${cx1} ${A.y}, ${cx2} ${B.y}, ${B.x - 18} ${B.y}`;
-      svg.append(el('path', { d: path, class: `mesh-edge ${status}` }));
-      // Animated particle layer
-      svg.append(el('path', { d: path, class: `mesh-edge mesh-particle ${status}`, 'stroke-width': 3 }));
+    // Layer headers
+    [
+      { x: X_CLIENT + 30, label: '200 CLIENTS' },
+      { x: X_FW,         label: '6 FIREWALL PAIRS' },
+      { x: X_DC,         label: '6 SHARED DATA CENTERS' },
+      { x: X_APP,        label: '~40K DEDICATED APP SERVERS' },
+      { x: X_SVC,        label: '8 SHARED PLATFORM SERVICES' },
+    ].forEach((h) => {
+      svg.append(el('text', { x: h.x, y: 32, class: 'mesh-layer-label', 'text-anchor': 'middle', text: h.label }));
     });
 
-    Object.values(all).forEach((n) => {
-      svg.append(el('circle', { cx: n.x, cy: n.y, r: 14, class: `mesh-node-circle ${n.status}`, 'stroke-width': 2 }));
-      svg.append(el('text', { x: n.x, y: n.y - 22, class: 'node-label', 'text-anchor': 'middle', text: n.label }));
+    // ---- LAYOUT: 200 client dots in 8 regional groups -------------------
+    const clientCols    = 6;
+    const dotR          = 3.5;
+    const dotSpacing    = 11;
+    const groupSpacing  = 22;
+
+    let yCursor = 80;
+    const clientNodes = [];
+
+    m.clientGroups.forEach((g) => {
+      const headerStatus = g.impacted > 0 ? 'crit' : (g.degraded ? 'warn' : '');
+      svg.append(el('text', {
+        x: X_CLIENT - 6, y: yCursor - 4,
+        'text-anchor': 'end',
+        class: `mesh-group-label ${headerStatus}`,
+        text: g.label,
+      }));
+      let countLabel = `${g.count} clients`;
+      if (g.impacted > 0)        countLabel += ` · ${g.impacted} down`;
+      else if (g.degraded > 0)   countLabel += ` · ${g.degraded} degraded`;
+      svg.append(el('text', {
+        x: X_CLIENT - 6, y: yCursor + 7,
+        'text-anchor': 'end',
+        class: 'mesh-group-count',
+        text: countLabel,
+      }));
+
+      for (let i = 0; i < g.count; i++) {
+        const col = i % clientCols;
+        const row = Math.floor(i / clientCols);
+        const cx = X_CLIENT + col * dotSpacing;
+        const cy = yCursor + row * dotSpacing;
+        let status = 'ok';
+        if (i < g.impacted)              status = 'crit';
+        else if (g.degraded && i < g.impacted + g.degraded) status = 'warn';
+        svg.append(el('circle', {
+          cx, cy, r: dotR,
+          class: `mesh-client-dot ${status}`,
+          'data-group': g.id,
+          'data-idx': String(i),
+        }));
+        clientNodes.push({ x: cx, y: cy, status, group: g.id });
+      }
+
+      const rows = Math.ceil(g.count / clientCols);
+      yCursor += rows * dotSpacing + groupSpacing;
+    });
+
+    // ---- POSITION FIREWALLS (vertical stack) ----------------------------
+    const fwYs = [140, 280, 440, 580, 740, 880];
+    m.firewalls.forEach((fw, i) => { fw.x = X_FW; fw.y = fwYs[i]; });
+
+    // ---- POSITION DATA CENTERS (vertical stack) -------------------------
+    const dcYs = [160, 300, 460, 600, 760, 900];
+    m.dataCenters.forEach((dc, i) => { dc.x = X_DC; dc.y = dcYs[i]; });
+
+    // ---- POSITION SHARED SERVICES ---------------------------------------
+    const svcYStart = 100, svcSpacing = 110;
+    m.sharedServices.forEach((s, i) => { s.x = X_SVC; s.y = svcYStart + i * svcSpacing; });
+
+    // ---- EDGES: each client → its primary firewall (200 thin lines) -----
+    clientNodes.forEach((c) => {
+      const g = m.clientGroups.find((x) => x.id === c.group);
+      const fw = m.firewalls.find((x) => x.id === g.primaryFW);
+      if (!fw) return;
+      const path = `M ${c.x + dotR} ${c.y} C ${c.x + 240} ${c.y}, ${fw.x - 160} ${fw.y}, ${fw.x - 14} ${fw.y}`;
+      svg.append(el('path', { d: path, class: `mesh-fan-edge ${c.status}` }));
+    });
+
+    // ---- EDGES: firewall → primary DC (animated particles) --------------
+    const fwToDc = [
+      ['fw-nyc', 'dc-nyc-1'], ['fw-lax', 'dc-lax-1'],
+      ['fw-lon', 'dc-lon-1'], ['fw-fra', 'dc-fra-1'],
+      ['fw-tok', 'dc-tok-1'], ['fw-syd', 'dc-syd-1'],
+    ];
+    fwToDc.forEach(([fwId, dcId]) => {
+      const fw = m.firewalls.find((x) => x.id === fwId);
+      const dc = m.dataCenters.find((x) => x.id === dcId);
+      if (!fw || !dc) return;
+      const status = fw.status === STATUS_KEY('crit') ? 'crit'
+                   : (dc.status !== STATUS_KEY('ok') ? 'warn' : 'ok');
+      const cx = (fw.x + dc.x) / 2;
+      const path = `M ${fw.x + 12} ${fw.y} C ${cx} ${fw.y}, ${cx} ${dc.y}, ${dc.x - 14} ${dc.y}`;
+      svg.append(el('path', { d: path, class: `mesh-edge ${status}`, 'stroke-width': 2 }));
+      svg.append(el('path', { d: path, class: `mesh-edge mesh-particle ${status}`, 'stroke-width': 4 }));
+    });
+
+    // ---- EDGES: DR / cross-DC replication (dashed) ----------------------
+    m.dcOverlap.forEach((o) => {
+      const a = m.dataCenters.find((x) => x.id === o.from);
+      const b = m.dataCenters.find((x) => x.id === o.to);
+      if (!a || !b) return;
+      const offset = 50;
+      const path = `M ${a.x - 10} ${a.y + 6} Q ${a.x - offset} ${(a.y + b.y) / 2}, ${b.x - 10} ${b.y - 6}`;
+      svg.append(el('path', { d: path, class: 'mesh-edge-dr' }));
+    });
+
+    // ---- APP SERVER CLOUDS — clusters of small dots around each DC -----
+    m.dataCenters.forEach((dc) => {
+      const cx = X_APP, cy = dc.y;
+      const total = Math.round(dc.appServers / 350); // ~30-50 dots per DC
+      for (let i = 0; i < total; i++) {
+        const angle = (i / total) * Math.PI * 2 + (dc.x + dc.y) * 0.013;
+        const radiusBase = 14 + ((i * 7) % 4) * 6;
+        const px = cx + Math.cos(angle) * radiusBase * (1 + ((i * 13) % 5) / 9);
+        const py = cy + Math.sin(angle) * radiusBase * 0.7 * (1 + ((i * 17) % 5) / 9);
+        const dotStatus = (dc.id === 'dc-nyc-1' && i % 4 === 0) ? 'crit' : 'ok';
+        svg.append(el('circle', { cx: px, cy: py, r: 1.6, class: `mesh-app-server ${dotStatus}` }));
+      }
+      svg.append(el('text', { x: cx, y: cy + 56, 'text-anchor': 'middle', class: 'mesh-cloud-label',
+        text: `${dc.appServers.toLocaleString()} app servers · ${dc.hostsClients} clients` }));
+    });
+
+    // ---- EDGES: DC → all shared services (thin) -------------------------
+    m.dataCenters.forEach((dc) => {
+      m.sharedServices.forEach((svc) => {
+        const cls = svc.status === STATUS_KEY('crit') ? 'crit'
+                  : (svc.status === STATUS_KEY('warn') ? 'warn' : 'ok');
+        const path = `M ${X_APP + 70} ${dc.y} C ${(X_APP + svc.x) / 2} ${dc.y}, ${(X_APP + svc.x) / 2} ${svc.y}, ${svc.x - 70} ${svc.y}`;
+        svg.append(el('path', { d: path, class: `mesh-edge-thin ${cls}` }));
+      });
+    });
+
+    // ---- NODES: firewalls -----------------------------------------------
+    m.firewalls.forEach((fw) => {
+      const cls = fw.status === STATUS_KEY('crit') ? 'crit' : (fw.status === STATUS_KEY('warn') ? 'warn' : 'ok');
+      svg.append(el('circle', { cx: fw.x, cy: fw.y, r: 12, class: `mesh-node-circle ${cls}`, 'stroke-width': 2 }));
+      svg.append(el('text', { x: fw.x, y: fw.y - 20, class: 'node-label', 'text-anchor': 'middle', text: fw.label }));
+    });
+
+    // ---- NODES: data centers --------------------------------------------
+    m.dataCenters.forEach((dc) => {
+      const cls = dc.status === STATUS_KEY('crit') ? 'crit' : (dc.status === STATUS_KEY('warn') ? 'warn' : 'ok');
+      svg.append(el('circle', { cx: dc.x, cy: dc.y, r: 16, class: `mesh-node-circle ${cls}`, 'stroke-width': 2 }));
+      svg.append(el('text', { x: dc.x, y: dc.y - 24, class: 'node-label', 'text-anchor': 'middle', text: dc.label }));
+      svg.append(el('text', { x: dc.x, y: dc.y + 30, class: 'mesh-node-sub', 'text-anchor': 'middle', text: `${dc.region}` }));
+    });
+
+    // ---- NODES: shared services (rectangles) ----------------------------
+    m.sharedServices.forEach((s) => {
+      const cls = s.status === STATUS_KEY('crit') ? 'crit' : (s.status === STATUS_KEY('warn') ? 'warn' : 'ok');
+      svg.append(el('rect', {
+        x: s.x - 70, y: s.y - 16, width: 140, height: 32, rx: 4,
+        class: `mesh-svc-rect ${cls}`, 'stroke-width': 1.5,
+      }));
+      svg.append(el('text', { x: s.x, y: s.y + 4, 'text-anchor': 'middle', class: 'mesh-svc-label', text: s.label }));
     });
 
     wrap.append(svg);
-    wrap.append(el('div', { class: 'mesh-legend' }, [
-      el('div', {}, [el('span', { class: 'dot ok' }), ' healthy traffic']),
-      el('div', { style: 'margin-top: 4px' }, [el('span', { class: 'dot warn' }), ' degraded']),
-      el('div', { style: 'margin-top: 4px' }, [el('span', { class: 'dot crit' }), ' failing']),
-      el('div', { style: 'margin-top: 6px; color: var(--text-faint)', text: 'Particle speed scales with degradation' }),
-    ]));
+
+    // ---- HUD: stat strip across top -------------------------------------
+    const t = m.totals;
+    wrap.append(
+      el('div', { class: 'mesh-stat-strip' }, [
+        meshStatTile(String(t.clients),                        'clients'),
+        meshStatTile(String(t.firewalls),                      'fw pairs'),
+        meshStatTile(String(t.dataCenters),                    'data ctrs'),
+        meshStatTile(`${(t.totalAppServers / 1000).toFixed(0)}k`, 'app servers'),
+        meshStatTile(String(t.sharedServices),                 'shared svc'),
+        meshStatTile(String(t.impactedClients),                'impacted', 'crit'),
+      ])
+    );
+
+    // ---- Legend ---------------------------------------------------------
+    wrap.append(
+      el('div', { class: 'mesh-legend' }, [
+        el('div', {}, [el('span', { class: 'dot ok' }),   ' healthy traffic']),
+        el('div', { style: 'margin-top: 3px' }, [el('span', { class: 'dot warn' }), ' degraded']),
+        el('div', { style: 'margin-top: 3px' }, [el('span', { class: 'dot crit' }), ' failing']),
+        el('div', { style: 'margin-top: 6px; color: var(--text-faint)' }, ['Particle speed ∝ degradation']),
+        el('div', { style: 'margin-top: 3px; color: var(--text-faint)' }, ['Dashed lines = DR replication']),
+        el('div', { style: 'margin-top: 3px; color: var(--text-faint)' }, ['Each client → ~200 dedicated servers']),
+      ])
+    );
+
     container.append(wrap);
+  }
+
+  // Helper — keeps STATUS string comparisons readable in the renderer.
+  function STATUS_KEY(name) { return D.STATUS[name.toUpperCase()] || name; }
+
+  function meshStatTile(num, label, tone) {
+    return el('div', { class: `mesh-stat-tile ${tone || ''}` }, [
+      el('div', { class: 'mesh-stat-num', text: num }),
+      el('div', { class: 'mesh-stat-label', text: label }),
+    ]);
   }
 
   // -- 19. Sankey flow ------------------------------------------------------

@@ -564,8 +564,65 @@ window.ALADDIN = (function () {
     { resource: 'Order svc · queue depth',    util: 89, sat: 'high',     errors:   0,  status: STATUS.WARN },
   ];
 
-  // 4. Service Mesh — uses existing components/edges plus highlighted flow paths.
-  // (animation handled via CSS keyframes in the renderer)
+  // 4. Service Mesh topology — realistic Aladdin scale: ~200 clients across
+  //    8 regional groups, 6 regional firewall pairs, 6 shared data centers
+  //    (with DR overlap), ~200 dedicated app servers per client (~40k total),
+  //    and 8 shared platform services.
+  const meshTopology = {
+    totals: {
+      clients:             200,
+      appServersPerClient: 200,
+      totalAppServers:     40000,
+      dataCenters:         6,
+      firewalls:           6,
+      sharedServices:      8,
+      impactedClients:     14,
+    },
+    clientGroups: [
+      // count totals: 30+40+25+35+15+25+20+10 = 200
+      { id: 'g-t1-na',    label: 'T1 N.America', count: 30, primaryFW: 'fw-nyc', primaryDC: 'dc-nyc-1', drDC: 'dc-lax-1', impacted: 14 },
+      { id: 'g-t2-na',    label: 'T2 N.America', count: 40, primaryFW: 'fw-nyc', primaryDC: 'dc-nyc-1', drDC: 'dc-lax-1', impacted:  0, degraded: 8 },
+      { id: 'g-t1-emea',  label: 'T1 EMEA',      count: 25, primaryFW: 'fw-lon', primaryDC: 'dc-lon-1', drDC: 'dc-fra-1', impacted:  0 },
+      { id: 'g-t2-emea',  label: 'T2 EMEA',      count: 35, primaryFW: 'fw-lon', primaryDC: 'dc-lon-1', drDC: 'dc-fra-1', impacted:  0 },
+      { id: 'g-t1-apac',  label: 'T1 APAC',      count: 15, primaryFW: 'fw-tok', primaryDC: 'dc-tok-1', drDC: 'dc-syd-1', impacted:  0 },
+      { id: 'g-t2-apac',  label: 'T2 APAC',      count: 25, primaryFW: 'fw-tok', primaryDC: 'dc-tok-1', drDC: 'dc-syd-1', impacted:  0 },
+      { id: 'g-wealth',   label: 'Wealth Mgmt',  count: 20, primaryFW: 'fw-nyc', primaryDC: 'dc-nyc-1', drDC: 'dc-lon-1', impacted:  0 },
+      { id: 'g-insurer',  label: 'Insurers',     count: 10, primaryFW: 'fw-fra', primaryDC: 'dc-fra-1', drDC: 'dc-lon-1', impacted:  0 },
+    ],
+    firewalls: [
+      { id: 'fw-nyc', label: 'FW · NA-East',    region: 'NA',   status: STATUS.CRIT },
+      { id: 'fw-lax', label: 'FW · NA-West',    region: 'NA',   status: STATUS.OK   },
+      { id: 'fw-lon', label: 'FW · EU-West',    region: 'EU',   status: STATUS.OK   },
+      { id: 'fw-fra', label: 'FW · EU-Central',  region: 'EU',   status: STATUS.OK   },
+      { id: 'fw-tok', label: 'FW · APAC-NE',    region: 'APAC', status: STATUS.OK   },
+      { id: 'fw-syd', label: 'FW · APAC-SE',    region: 'APAC', status: STATUS.OK   },
+    ],
+    dataCenters: [
+      { id: 'dc-nyc-1', label: 'DC NYC-1', region: 'NA',   status: STATUS.WARN, hostsClients: 90, appServers: 18000 },
+      { id: 'dc-lax-1', label: 'DC LAX-1', region: 'NA',   status: STATUS.OK,   hostsClients: 70, appServers: 14000 },
+      { id: 'dc-lon-1', label: 'DC LON-1', region: 'EU',   status: STATUS.OK,   hostsClients: 60, appServers: 12000 },
+      { id: 'dc-fra-1', label: 'DC FRA-1', region: 'EU',   status: STATUS.OK,   hostsClients: 45, appServers:  9000 },
+      { id: 'dc-tok-1', label: 'DC TOK-1', region: 'APAC', status: STATUS.OK,   hostsClients: 40, appServers:  8000 },
+      { id: 'dc-syd-1', label: 'DC SYD-1', region: 'APAC', status: STATUS.OK,   hostsClients: 30, appServers:  6000 },
+    ],
+    // Multi-DC overlap — clients with primary + DR replication.
+    dcOverlap: [
+      { from: 'dc-nyc-1', to: 'dc-lax-1', clients: 60, label: 'NA replication' },
+      { from: 'dc-lon-1', to: 'dc-fra-1', clients: 45, label: 'EU replication' },
+      { from: 'dc-tok-1', to: 'dc-syd-1', clients: 25, label: 'APAC replication' },
+      { from: 'dc-nyc-1', to: 'dc-lon-1', clients: 12, label: 'T1 cross-region DR' },
+    ],
+    sharedServices: [
+      { id: 'svc-trading',    label: 'Trading Engine', status: STATUS.CRIT },
+      { id: 'svc-orders',     label: 'Order Routing',  status: STATUS.CRIT },
+      { id: 'svc-risk',       label: 'Risk Analytics', status: STATUS.OK   },
+      { id: 'svc-portfolio',  label: 'Portfolio Mgmt', status: STATUS.OK   },
+      { id: 'svc-reporting',  label: 'Reporting',      status: STATUS.WARN },
+      { id: 'svc-marketdata', label: 'Market Data',    status: STATUS.OK   },
+      { id: 'svc-auth',       label: 'Auth / SSO',     status: STATUS.OK   },
+      { id: 'svc-analytics',  label: 'Analytics',      status: STATUS.OK   },
+    ],
+  };
 
   // 5. Statuspage-style components
   const statusComponents = [
@@ -941,6 +998,7 @@ window.ALADDIN = (function () {
     statusComponents,
     statusHistory,
     healthGrid,
+    meshTopology,
     aiNarrative,
     pagerView,
     postMortem,
