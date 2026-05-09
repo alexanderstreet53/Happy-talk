@@ -308,6 +308,213 @@ window.ALADDIN = (function () {
   ];
 
   // ---------------------------------------------------------------------------
+  // Customer triage cards — drives the war-room "Customer Triage" variation.
+  // ---------------------------------------------------------------------------
+  const clientImpact = [
+    {
+      id: 'gs-eqty-nyc', name: 'Goldman Equities NYC', tier: 'T1', aum: '$1.2B', region: 'NYC',
+      status: STATUS.CRIT, contact: 'Steven Bao (RM)',
+      whatTheySee: 'Order acks taking 850ms (8× normal). 23 orders queued. No data losses observed.',
+      whatWereDoing: 'Network team rebalancing FW-NYC. ETA 8m. Failover to LON ready if recurrence.',
+      orders: { queued: 23, ack_p95: 850, error_pct: 12.4 },
+      acknowledged: true, ackBy: 'Sarah Kim', ackAt: '08:31',
+    },
+    {
+      id: 'jpm-fi-nyc', name: 'JPM Fixed Income NYC', tier: 'T1', aum: '$890M', region: 'NYC',
+      status: STATUS.CRIT, contact: 'Lisa Park (RM)',
+      whatTheySee: 'Trade confirmations delayed 3-5 minutes. 41 pending. Risk feeds running normally.',
+      whatWereDoing: 'Confirmations queue draining as latency recovers. Direct line opened with client.',
+      orders: { queued: 41, ack_p95: 920, error_pct: 14.1 },
+      acknowledged: true, ackBy: 'Sarah Kim', ackAt: '08:33',
+    },
+    {
+      id: 'cit-quant-nyc', name: 'Citadel Quant NYC', tier: 'T1', aum: '$2.4B', region: 'NYC',
+      status: STATUS.CRIT, contact: 'Marcus Webb (RM)',
+      whatTheySee: 'Algo execution paused (client-side kill switch tripped on latency).',
+      whatWereDoing: 'Awaiting client decision to resume. Failover to LON staged.',
+      orders: { queued: 0, ack_p95: 1100, error_pct: 18.0 },
+      acknowledged: false, contact_phone: 'On hold w/ client',
+    },
+    {
+      id: 'ms-pwm-nyc', name: 'Morgan Stanley PWM', tier: 'T1', aum: '$1.8B', region: 'NYC',
+      status: STATUS.CRIT, contact: 'Jenny Liu (RM)',
+      whatTheySee: 'Some block trades stuck pending. Partial fills reported by 2 desks.',
+      whatWereDoing: 'Order routing engineer engaged. Manual intervention on stuck blocks underway.',
+      orders: { queued: 17, ack_p95: 940, error_pct: 11.2 },
+      acknowledged: true, ackBy: 'Sarah Kim', ackAt: '08:36',
+    },
+    {
+      id: 'fid-pen-nyc', name: 'Fidelity Pension Desk', tier: 'T2', aum: '$340M', region: 'NYC',
+      status: STATUS.WARN, contact: 'Robert Lee (RM)',
+      whatTheySee: 'Reporting feed delayed by ~3 minutes. No trading impact.',
+      whatWereDoing: 'Reporting will catch up automatically once primary stabilises.',
+      orders: { queued: 0, ack_p95: 95, error_pct: 0.4 },
+      acknowledged: true, ackBy: 'Diane Foster', ackAt: '08:39',
+    },
+    {
+      id: 'bk-trust-nyc', name: 'BNY Mellon Trust NYC', tier: 'T2', aum: '$210M', region: 'NYC',
+      status: STATUS.WARN, contact: 'Janet Wu (RM)',
+      whatTheySee: 'Client-portal latency elevated. Trading and risk feeds unaffected.',
+      whatWereDoing: 'Reporting service degraded. Recovers automatically with primary.',
+      orders: { queued: 0, ack_p95: 78, error_pct: 0.2 },
+      acknowledged: false,
+    },
+  ];
+
+  // ---------------------------------------------------------------------------
+  // Diagnostic hypotheses — drives the "Diagnostic" variation. Bayesian-style.
+  // ---------------------------------------------------------------------------
+  const hypotheses = [
+    {
+      id: 'h1',
+      text: 'Dual firewall master state on NYC perimeter cluster',
+      probability: 0.94,
+      evidence: [
+        'FW-NYC-PRIMARY raising master-conflict alarm (08:14)',
+        'FW-NYC-SECONDARY reports as master in cluster status',
+        'Trading latency p95 = 850ms (was 62ms 30 min ago)',
+        'Pattern matches INC-2024-0312 (resolved by SEC demotion)',
+      ],
+      counter: 'FW-NYC-PRIMARY shows master role for 5 consecutive minutes — would refute split-brain.',
+      actions: ['Demote FW-NYC-SECONDARY', 'Verify PRI holds master', 'Drain to LON if recurrence'],
+    },
+    {
+      id: 'h2',
+      text: 'Network partition between core switch and FW pair',
+      probability: 0.03,
+      evidence: ['Other downstream of core switch unaffected', 'Core switch CPU/memory nominal'],
+      counter: 'Core network monitoring shows no partition.',
+      actions: ['Run probe core → NYC FWs', 'Check switch logs last 60 min'],
+    },
+    {
+      id: 'h3',
+      text: 'Bad config push to firewalls (recent change)',
+      probability: 0.02,
+      evidence: ['No FW config changes in last 14 days (per audit log)'],
+      counter: 'Audit log shows no recent changes.',
+      actions: ['Review last 30d FW config changes', 'Cross-check with deploy log'],
+    },
+    {
+      id: 'h4',
+      text: 'Trading engine deploy regression',
+      probability: 0.01,
+      evidence: ['No trading deploys in last 6 hours'],
+      counter: 'Last deploy was 9h ago, no health regressions then.',
+      actions: ['Check service version', 'Roll back if config-driven'],
+    },
+  ];
+
+  const observations = [
+    { text: 'p95 latency 850ms (NYC trading)',  severity: STATUS.CRIT },
+    { text: 'FW-NYC master-conflict alarm',     severity: STATUS.CRIT },
+    { text: '23 orders queued · GS Equities',   severity: STATUS.CRIT },
+    { text: '14 T1 NYC clients impacted',       severity: STATUS.CRIT },
+    { text: 'FW-NYC throughput dropped 80%',    severity: STATUS.WARN },
+    { text: 'Reporting feed delayed 3min',      severity: STATUS.WARN },
+    { text: 'LON, TOK, FRA all healthy',        severity: STATUS.OK },
+    { text: 'Core network nominal',             severity: STATUS.OK },
+    { text: 'No FW config changes in 14d',      severity: STATUS.OK },
+  ];
+
+  // ---------------------------------------------------------------------------
+  // Distributed trace — drives the "Trace Waterfall" variation.
+  // ---------------------------------------------------------------------------
+  const trace = {
+    trace_id: '4f8a3c1e2d9b7a5f',
+    client: 'Goldman Equities NYC · order #GS-NYC-04471',
+    total_dur_ms: 962,
+    baseline_dur_ms: 78,
+    spans: [
+      { name: 'Client SDK → FIX Gateway',         start: 0,   dur: 4,   status: STATUS.OK,   note: 'Within SLO' },
+      { name: 'FIX Gateway · auth + parse',       start: 4,   dur: 8,   status: STATUS.OK,   note: 'Within SLO' },
+      { name: 'FIX Gateway → FW-NYC-PRIMARY',     start: 12,  dur: 6,   status: STATUS.OK,   note: 'Within SLO' },
+      { name: 'FW-NYC-PRIMARY · policy eval',     start: 18,  dur: 142, status: STATUS.WARN, note: 'Normally 4ms — connection-table contention from dual master' },
+      { name: 'FW-NYC-PRIMARY → Trading Engine',  start: 160, dur: 780, status: STATUS.CRIT, note: 'Normally 12ms — 3 connection resets, finally accepted on retry #4' },
+      { name: 'Trading Engine · matching',        start: 940, dur: 18,  status: STATUS.OK,   note: 'Within SLO once reached' },
+      { name: 'Trading Engine → confirmation',    start: 958, dur: 4,   status: STATUS.OK,   note: 'Within SLO' },
+    ],
+  };
+
+  // ---------------------------------------------------------------------------
+  // Decision log — drives the "Commander" variation.
+  // ---------------------------------------------------------------------------
+  const decisions = [
+    { at: '08:21 ET', by: 'Marcus Chen · Network',     text: 'Confirmed cluster split-brain. SEC promoted while PRI is still up.', impact: 'Diagnosis identified' },
+    { at: '08:24 ET', by: 'Aaron Davis · Vendor',      text: 'Palo Alto support concurs with split-brain assessment.',              impact: 'External corroboration' },
+    { at: '08:26 ET', by: 'Priya Natarajan · IC',      text: 'Declared P0 incident. Opened bridge.',                                impact: 'Mobilisation' },
+    { at: '08:28 ET', by: 'Priya Natarajan · IC',      text: 'Assigned Sarah Kim trading liaison, Diane Foster on comms.',           impact: 'Roles allocated' },
+    { at: '08:32 ET', by: 'Priya Natarajan · IC',      text: 'Approved demotion of FW-NYC-SECONDARY (vendor concurred).',            impact: 'Mitigation authorised' },
+    { at: '08:38 ET', by: 'Marcus Chen · Network',     text: 'SEC demoted. PRI holding master role.',                               impact: 'Mitigation in progress' },
+    { at: '08:43 ET', by: 'Sarah Kim · Trading',       text: 'NYC ack latency back to 62ms p95.',                                   impact: 'Recovery confirmed' },
+  ];
+
+  const roles = [
+    { role: 'Incident Commander', person: 'Priya Natarajan', avatar: 'PN', status: 'active'     },
+    { role: 'Network Lead',       person: 'Marcus Chen',     avatar: 'MC', status: 'active'     },
+    { role: 'Trading Liaison',    person: 'Sarah Kim',       avatar: 'SK', status: 'active'     },
+    { role: 'Comms Lead',         person: 'Diane Foster',    avatar: 'DF', status: 'active'     },
+    { role: 'Vendor Liaison',     person: 'Aaron Davis',     avatar: 'AD', status: 'active'     },
+    { role: 'Scribe / Recorder',  person: 'Jenny Liu',       avatar: 'JL', status: 'active'     },
+    { role: 'Customer Success',   person: 'Robert Lee',      avatar: 'RL', status: 'standby'    },
+    { role: 'Exec Liaison',       person: 'Aphus Kotak',     avatar: 'AK', status: 'monitoring' },
+  ];
+
+  const etas = {
+    nextRequiredAction: 'Verify FW-NYC-PRIMARY holds master role for 5 consecutive minutes (3:42 remaining)',
+    mitigation: { value: '8m',  confidence: 'medium', label: 'ETA to mitigation' },
+    resolution: { value: '22m', confidence: 'low',    label: 'ETA to full resolution' },
+    nextComms:  { value: '4m',  confidence: 'high',   label: 'Next leadership update' },
+  };
+
+  // ---------------------------------------------------------------------------
+  // Cost data — drives the "Cost Burn" variation.
+  // ---------------------------------------------------------------------------
+  const cost = {
+    realized: 284419,
+    burnRatePerMin: 4800,
+    rankAllTime: '4th most costly incident · trailing 12 months',
+    pastIncidents: [
+      { name: 'INC-2025-1112 · Core DB outage',   cost: 1240000, durMin: 142 },
+      { name: 'INC-2025-0801 · LON DC cooling',   cost:  612000, durMin:  88 },
+      { name: 'INC-2025-0403 · Auth provider',    cost:  380000, durMin:  54 },
+      { name: 'INC-2026-0508 · FW NYC dual master (current)', cost: 284419, durMin: 36, current: true },
+      { name: 'INC-2025-0220 · Rate-limit cascade', cost: 220000, durMin: 41 },
+    ],
+    byClient: [
+      { name: 'T1 NA',      value: 178000, share: 0.625 },
+      { name: 'T2 NA',      value:  64000, share: 0.225 },
+      { name: 'Wealth',     value:  28000, share: 0.099 },
+      { name: 'Insurers',   value:  14000, share: 0.049 },
+    ],
+    byService: [
+      { name: 'Trading Engine', value: 142000, share: 0.50 },
+      { name: 'Order Routing',  value:  88000, share: 0.31 },
+      { name: 'Reporting',      value:  32000, share: 0.11 },
+      { name: 'Other',          value:  22000, share: 0.08 },
+    ],
+    mitigations: [
+      { step: 'Open vendor ticket',                 deltaPerMin:    0, note: 'No direct cost reduction yet' },
+      { step: 'Demote FW-NYC-SECONDARY',            deltaPerMin: -3100, note: 'Stops connection-table contention' },
+      { step: 'Drain T1 NYC traffic to LON',         deltaPerMin: -1200, note: 'Reduces queue depth for top accounts' },
+      { step: 'Manual intervention on stuck blocks', deltaPerMin:  -400, note: 'Recovers MS-PWM 17 stuck blocks' },
+    ],
+  };
+
+  // ---------------------------------------------------------------------------
+  // Replay timeline — drives the "Replay / Forensics" variation.
+  // ---------------------------------------------------------------------------
+  const replayEvents = [
+    { atMin: 1404, time: '08:14', label: 'FW-NYC-PRIMARY health check fails',           kind: 'detect',   state: { 'fw-nyc-pri': STATUS.CRIT, 'fw-nyc-sec': STATUS.OK,   'svc-trading': STATUS.OK,  'svc-orders': STATUS.OK   } },
+    { atMin: 1406, time: '08:16', label: 'FW-NYC-SECONDARY promotes to master (DUAL)',  kind: 'event',    state: { 'fw-nyc-pri': STATUS.CRIT, 'fw-nyc-sec': STATUS.CRIT, 'svc-trading': STATUS.OK,  'svc-orders': STATUS.OK   } },
+    { atMin: 1408, time: '08:18', label: 'Trading latency spike, NYC region',           kind: 'event',    state: { 'fw-nyc-pri': STATUS.CRIT, 'fw-nyc-sec': STATUS.CRIT, 'svc-trading': STATUS.CRIT,'svc-orders': STATUS.CRIT } },
+    { atMin: 1411, time: '08:21', label: 'Network confirms split-brain',                kind: 'event',    state: { 'fw-nyc-pri': STATUS.CRIT, 'fw-nyc-sec': STATUS.CRIT, 'svc-trading': STATUS.CRIT,'svc-orders': STATUS.CRIT } },
+    { atMin: 1416, time: '08:26', label: 'P0 declared, command center mobilises',        kind: 'declare',  state: { 'fw-nyc-pri': STATUS.CRIT, 'fw-nyc-sec': STATUS.CRIT, 'svc-trading': STATUS.CRIT,'svc-orders': STATUS.CRIT } },
+    { atMin: 1422, time: '08:32', label: 'IC approves SEC demotion',                     kind: 'event',    state: { 'fw-nyc-pri': STATUS.CRIT, 'fw-nyc-sec': STATUS.CRIT, 'svc-trading': STATUS.CRIT,'svc-orders': STATUS.CRIT } },
+    { atMin: 1428, time: '08:38', label: 'FW-NYC-SEC demoted, PRI holds master',         kind: 'mitigate', state: { 'fw-nyc-pri': STATUS.WARN, 'fw-nyc-sec': STATUS.WARN, 'svc-trading': STATUS.WARN,'svc-orders': STATUS.WARN } },
+    { atMin: 1432, time: '08:42', label: 'Trading recovery confirmed',                   kind: 'recover',  state: { 'fw-nyc-pri': STATUS.WARN, 'fw-nyc-sec': STATUS.WARN, 'svc-trading': STATUS.OK,  'svc-orders': STATUS.OK   } },
+  ];
+
+  // ---------------------------------------------------------------------------
   // Top-line KPIs for the hub banner.
   // ---------------------------------------------------------------------------
   const kpis = {
@@ -336,6 +543,15 @@ window.ALADDIN = (function () {
     runbook,
     commsLog,
     kpis,
+    clientImpact,
+    hypotheses,
+    observations,
+    trace,
+    decisions,
+    roles,
+    etas,
+    cost,
+    replayEvents,
     byId(id) { return components.find(c => c.id === id); },
   };
 })();

@@ -41,16 +41,17 @@
 
   const statusClass = (s) => s; // 'ok' | 'warn' | 'crit' | 'down'
 
-  const setView = (name) => {
+  const setView = (raw) => {
+    const [name, sub] = raw.split('/');
     [...tabs.querySelectorAll('.tab')].forEach((t) =>
       t.classList.toggle('active', t.dataset.view === name)
     );
     view.replaceChildren();
     if (name === 'hub') renderHub();
     else if (name === 'tree') renderTree();
-    else if (name === 'war-room') renderWarRoom();
+    else if (name === 'war-room') renderWarRoom(sub);
     else if (name === 'timeline') renderTimeline();
-    history.replaceState(null, '', `#${name}`);
+    history.replaceState(null, '', `#${raw}`);
   };
 
   tabs.addEventListener('click', (e) => {
@@ -330,10 +331,26 @@
   }
 
   // -------------------------------------------------------------------------
-  // WAR ROOM view — incident-centric.
+  // WAR ROOM view — incident-centric. 7 variations, each a different mental
+  // model for managing the same incident.
   // -------------------------------------------------------------------------
-  function renderWarRoom() {
+  const WAR_VARIATIONS = [
+    { id: 'operational', label: 'Operational',     render: renderWarOperational, hint: '3-pane operations' },
+    { id: 'commander',   label: 'Commander',       render: renderWarCommander,   hint: 'Coordination & decisions' },
+    { id: 'diagnostic',  label: 'Diagnostic',      render: renderWarDiagnostic,  hint: 'Hypothesis-driven RCA' },
+    { id: 'triage',      label: 'Customer Triage', render: renderWarTriage,      hint: 'Per-client impact cards', badge: '14' },
+    { id: 'trace',       label: 'Trace',           render: renderWarTrace,       hint: 'Span-by-span waterfall' },
+    { id: 'cost',        label: 'Cost Burn',       render: renderWarCost,        hint: 'Dollars per minute' },
+    { id: 'replay',      label: 'Replay',          render: renderWarReplay,      hint: 'Time-scrubber forensics' },
+  ];
+
+  let activeWarVariation = 'operational';
+  let replayCursorMin = 1428; // start the replay scrubber at the 'mitigate' event
+
+  function renderWarRoom(variation) {
+    if (variation) activeWarVariation = variation;
     const inc = D.incident;
+
     const banner = el('section', { class: 'war-banner' }, [
       el('div', {}, [
         el('div', { class: 'war-banner-id', text: `${inc.severity} · ${inc.id}` }),
@@ -352,6 +369,39 @@
       ]),
     ]);
 
+    const subnav = el('nav', { class: 'war-subnav' });
+    const body = el('div', { id: 'war-body' });
+
+    const setVar = (id) => {
+      activeWarVariation = id;
+      [...subnav.querySelectorAll('.war-subnav-item')].forEach((b) =>
+        b.classList.toggle('active', b.dataset.variation === id)
+      );
+      body.replaceChildren();
+      const v = WAR_VARIATIONS.find((x) => x.id === id);
+      v.render(body);
+      history.replaceState(null, '', `#war-room/${id}`);
+    };
+
+    WAR_VARIATIONS.forEach((v) => {
+      const btn = el('button', {
+        class: `war-subnav-item ${activeWarVariation === v.id ? 'active' : ''}`,
+        'data-variation': v.id,
+        title: v.hint,
+        onclick: () => setVar(v.id),
+      }, [
+        v.label,
+        v.badge ? el('span', { class: 'badge', text: v.badge }) : null,
+      ]);
+      subnav.append(btn);
+    });
+
+    view.append(banner, subnav, body);
+    setVar(activeWarVariation);
+  }
+
+  // -- Variation 1: Operational (the original 3-pane) ----------------------
+  function renderWarOperational(container) {
     const grid = el('section', { class: 'war-grid' });
     grid.append(
       el('div', { class: 'card' }, [
@@ -370,8 +420,615 @@
         renderComms(),
       ])
     );
+    container.append(grid);
+  }
 
-    view.append(banner, grid);
+  // -- Variation 2: Commander — coordination + decisions + roles -----------
+  function renderWarCommander(container) {
+    const e = D.etas;
+
+    const actionBar = el('section', { class: 'cmd-action-bar' }, [
+      el('div', {}, [
+        el('div', { class: 'cmd-action-label', text: 'Next required action' }),
+        el('div', { class: 'cmd-action-text', text: e.nextRequiredAction }),
+      ]),
+      el('div'),
+      el('button', { class: 'cmd-action-cta', text: 'CONFIRM ✓' }),
+    ]);
+
+    const etaStack = el('div', { class: 'eta-stack' });
+    [
+      { e: e.mitigation, tone: 'crit'  },
+      { e: e.resolution, tone: 'warn'  },
+      { e: e.nextComms,  tone: ''      },
+    ].forEach(({ e: blk, tone }) => {
+      etaStack.append(
+        el('div', { class: `eta-block ${tone}` }, [
+          el('div', { class: 'eta-label', text: blk.label }),
+          el('div', { class: 'eta-value', text: blk.value }),
+          el('div', { class: 'eta-confidence' }, [
+            'confidence ',
+            el('span', { class: blk.confidence, text: blk.confidence }),
+          ]),
+        ])
+      );
+    });
+
+    const decisionsCard = el('div', { class: 'card' }, [
+      cardHead('Decision Log'),
+      (() => {
+        const wrap = el('div', { class: 'decisions' });
+        D.decisions.forEach((d, i) => {
+          const isLatest = i === D.decisions.length - 1;
+          wrap.append(
+            el('div', { class: `decision-row ${isLatest ? 'latest' : ''}` }, [
+              el('div', { class: 'decision-meta' }, [
+                el('span', { class: 'decision-time', text: d.at }),
+                el('span', { class: 'decision-by', text: d.by }),
+              ]),
+              el('div', { class: 'decision-text', text: d.text }),
+              el('div', { class: 'decision-impact', text: '→ ' + d.impact }),
+            ])
+          );
+        });
+        return wrap;
+      })(),
+    ]);
+
+    const rolesCard = el('div', { class: 'card' }, [
+      cardHead('Bridge · Roles'),
+      (() => {
+        const list = el('div', { class: 'role-list' });
+        D.roles.forEach((r) => {
+          list.append(
+            el('div', { class: 'role-row' }, [
+              el('div', { class: 'role-avatar', text: r.avatar }),
+              el('div', {}, [
+                el('div', { class: 'role-name', text: r.person }),
+                el('div', { class: 'role-role', text: r.role }),
+              ]),
+              el('span', { class: `role-status-pill ${r.status}`, text: r.status }),
+            ])
+          );
+        });
+        return list;
+      })(),
+    ]);
+
+    const grid = el('div', { class: 'cmd-grid' }, [
+      el('div', { class: 'card' }, [cardHead('ETAs & Comms'), etaStack]),
+      decisionsCard,
+      rolesCard,
+    ]);
+
+    container.append(actionBar, grid);
+  }
+
+  // -- Variation 3: Diagnostic — hypotheses + observations + probes --------
+  function renderWarDiagnostic(container) {
+    const obs = el('section', { class: 'observations' }, [
+      el('span', { class: 'observations-label', text: 'Observations' }),
+      ...D.observations.map((o) =>
+        el('span', { class: `obs-chip ${o.severity}`, text: o.text })
+      ),
+    ]);
+
+    const hypList = el('div', { class: 'hypothesis-list' });
+    D.hypotheses.forEach((h, i) => {
+      const top = i === 0;
+      const card = el('div', { class: `hypothesis ${top ? 'top' : ''}` }, [
+        el('div', { class: 'hyp-head' }, [
+          el('div', { class: 'hyp-text', text: h.text }),
+          el('div', { class: 'hyp-prob', text: `${(h.probability * 100).toFixed(0)}%` }),
+        ]),
+        el('div', { class: 'hyp-bar' }, [
+          el('div', { class: 'hyp-bar-fill', style: `width: ${h.probability * 100}%` }),
+        ]),
+        el('div', { class: 'hyp-section-label', text: 'Supporting evidence' }),
+        ...h.evidence.map((e) =>
+          el('div', { class: 'hyp-evidence-row' }, [
+            el('span', { class: 'mark', text: '✓' }),
+            el('span', { text: e }),
+          ])
+        ),
+        el('div', { class: 'hyp-section-label', text: 'What would refute this' }),
+        el('div', { class: 'hyp-evidence-row counter' }, [
+          el('span', { class: 'mark', text: '⊘' }),
+          el('span', { text: h.counter }),
+        ]),
+        el('div', { class: 'hyp-section-label', text: 'Recommended actions' }),
+        el('div', { class: 'hyp-actions' }, h.actions.map((a) =>
+          el('button', { class: 'hyp-action-btn', text: a })
+        )),
+      ]);
+      hypList.append(card);
+    });
+
+    const probesCard = el('div', { class: 'card' }, [
+      cardHead('Probes'),
+      (() => {
+        const probes = [
+          { name: 'show cluster status FW-NYC',         result: 'split-brain confirmed', tone: 'crit' },
+          { name: 'ping core → fw-nyc-pri',             result: '< 1ms · healthy',       tone: 'ok' },
+          { name: 'show last 30d FW-NYC config diffs',  result: '0 changes',              tone: 'ok' },
+          { name: 'show last 24h trading deploys',      result: '0 deploys',              tone: 'ok' },
+          { name: 'replay GS Equities order #04471',    result: 'reproducer captured',    tone: 'warn' },
+          { name: 'check vendor support ticket',        result: 'P1 · in progress',       tone: 'warn' },
+          { name: 'run synthetic order NYC → trading',  result: 'pending…',                tone: 'pending' },
+        ];
+        const wrap = el('div', { class: 'probe-list' });
+        probes.forEach((p) =>
+          wrap.append(
+            el('div', { class: 'probe-row' }, [
+              el('div', { class: 'probe-name', text: p.name }),
+              el('div', { class: `probe-result ${p.tone}`, text: p.result }),
+            ])
+          )
+        );
+        return wrap;
+      })(),
+    ]);
+
+    const calibrationCard = el('div', { class: 'card', style: 'margin-top: 14px' }, [
+      cardHead('Confidence calibration · last 30 incidents'),
+      el('div', { style: 'font-size: 12px; color: var(--text-soft); padding: 8px 4px;' }, [
+        el('div', {}, [
+          el('span', { class: 'mono', style: 'color: var(--ok)', text: '94% ' }),
+          'top-1 hypothesis correct when probability ≥ 0.9',
+        ]),
+        el('div', { style: 'margin-top: 6px;' }, [
+          el('span', { class: 'mono', style: 'color: var(--warn)', text: '67% ' }),
+          'top-1 correct when probability between 0.6 – 0.9',
+        ]),
+        el('div', { style: 'margin-top: 6px;' }, [
+          el('span', { class: 'mono', style: 'color: var(--text-muted)', text: 'n=30 ' }),
+          'incidents tracked, calibration updated weekly',
+        ]),
+      ]),
+    ]);
+
+    const grid = el('div', { class: 'diag-grid' }, [
+      el('div', { class: 'card' }, [
+        cardHead('Hypotheses · ranked by posterior probability'),
+        hypList,
+      ]),
+      el('div', { class: 'diag-side' }, [
+        probesCard,
+        calibrationCard,
+      ]),
+    ]);
+
+    container.append(obs, grid);
+  }
+
+  // -- Variation 4: Customer Triage — per-client cards --------------------
+  function renderWarTriage(container) {
+    const counts = D.clientImpact.reduce(
+      (acc, c) => {
+        if (c.status === S.CRIT) acc.crit++;
+        if (c.status === S.WARN) acc.warn++;
+        if (c.acknowledged) acc.ack++;
+        return acc;
+      },
+      { crit: 0, warn: 0, ack: 0 }
+    );
+
+    const toolbar = el('section', { class: 'triage-toolbar' }, [
+      el('div', { class: 'triage-counter' }, [
+        el('span', { class: 'pill crit', text: `${counts.crit} critical` }),
+        el('span', { class: 'pill warn', text: `${counts.warn} degraded` }),
+        el('span', { class: 'pill muted', text: `${D.clientImpact.length - counts.ack} unacknowledged` }),
+        el('span', { class: 'pill ok', text: `${counts.ack} notified` }),
+      ]),
+      el('div'), // spacer
+      el('div', { class: 'triage-filters' }, [
+        el('button', { class: 'triage-filter active', text: 'All' }),
+        el('button', { class: 'triage-filter', text: 'T1 only' }),
+        el('button', { class: 'triage-filter', text: 'NYC' }),
+        el('button', { class: 'triage-filter', text: 'Unacknowledged' }),
+      ]),
+    ]);
+
+    const grid = el('div', { class: 'triage-grid' });
+    D.clientImpact.forEach((c) => {
+      const card = el('div', { class: `client-card ${c.status} ${c.acknowledged ? 'acknowledged' : ''}` }, [
+        el('div', { class: 'client-head' }, [
+          el('div', {}, [
+            el('div', { class: 'client-name', text: c.name }),
+            el('div', { class: 'client-tags' }, [
+              el('span', { class: `client-tag ${c.tier === 'T1' ? 't1' : ''}`, text: c.tier }),
+              el('span', { class: 'client-tag', text: c.aum }),
+              el('span', { class: 'client-tag', text: c.region }),
+              el('span', { class: 'client-tag contact', text: c.contact }),
+            ]),
+          ]),
+          c.acknowledged
+            ? el('span', { class: 'ack-badge', text: `✓ ${c.ackBy}` })
+            : el('span', { class: 'ack-badge', style: 'background: var(--crit-bg); color: var(--crit);', text: 'OPEN' }),
+        ]),
+        el('div', { class: 'client-section' }, [
+          el('div', { class: 'label', text: 'What they see' }),
+          el('div', { class: 'body', text: c.whatTheySee }),
+        ]),
+        el('div', { class: 'client-section' }, [
+          el('div', { class: 'label', text: 'What we are doing' }),
+          el('div', { class: 'body', text: c.whatWereDoing }),
+        ]),
+        el('div', { class: 'client-metrics' }, [
+          metricCell(c.orders.queued, 'queued', c.orders.queued > 0 ? 'crit' : ''),
+          metricCell(`${c.orders.ack_p95}ms`, 'ack p95', c.orders.ack_p95 > 200 ? 'crit' : c.orders.ack_p95 > 100 ? 'warn' : ''),
+          metricCell(`${c.orders.error_pct}%`, 'errors', c.orders.error_pct > 5 ? 'crit' : c.orders.error_pct > 1 ? 'warn' : ''),
+        ]),
+        el('div', { class: 'client-actions' }, [
+          el('button', { class: 'client-action primary', text: 'Draft comms' }),
+          el('button', { class: 'client-action', text: 'Initiate failover' }),
+          el('button', { class: 'client-action', text: 'Open bridge' }),
+        ]),
+      ]);
+      grid.append(card);
+    });
+
+    container.append(toolbar, grid);
+  }
+
+  function metricCell(num, label, tone) {
+    return el('div', { class: 'client-metric' }, [
+      el('div', { class: `num ${tone || ''}`, text: String(num) }),
+      el('span', { class: 'lbl', text: label }),
+    ]);
+  }
+
+  // -- Variation 5: Trace — span-by-span waterfall ------------------------
+  function renderWarTrace(container) {
+    const t = D.trace;
+
+    const head = el('section', { class: 'trace-head' }, [
+      el('div', { class: 'trace-id-block' }, [
+        el('span', { class: 'trace-id-label', text: 'Trace ID' }),
+        el('span', { class: 'trace-id-val', text: t.trace_id }),
+      ]),
+      el('div', { class: 'trace-summary' }, [
+        t.client + ' · total duration ',
+        el('span', { class: 'crit', text: `${t.total_dur_ms}ms` }),
+        ' ',
+        el('span', { class: 'baseline', text: `(baseline: ${t.baseline_dur_ms}ms · ${(t.total_dur_ms / t.baseline_dur_ms).toFixed(1)}× slower)` }),
+      ]),
+      el('div', { class: 'trace-controls' }, [
+        el('button', { class: 'trace-toggle active', text: 'Single trace' }),
+        el('button', { class: 'trace-toggle', text: 'Aggregate (1k traces)' }),
+        el('button', { class: 'trace-toggle', text: 'vs baseline' }),
+      ]),
+    ]);
+
+    const wf = el('section', { class: 'trace-waterfall' });
+    const max = t.total_dur_ms;
+    const baseline = t.baseline_dur_ms;
+
+    // Axis
+    const axis = el('div', { class: 'trace-axis' }, [
+      el('div', {}),
+      el('div', { class: 'ticks' }, [
+        el('span', { text: '0ms' }),
+        el('span', { text: `${Math.round(max * 0.25)}ms` }),
+        el('span', { text: `${Math.round(max * 0.5)}ms` }),
+        el('span', { text: `${Math.round(max * 0.75)}ms` }),
+        el('span', { text: `${max}ms` }),
+      ]),
+      el('div', { style: 'text-align: right;', text: 'duration' }),
+    ]);
+    wf.append(axis);
+
+    t.spans.forEach((span) => {
+      const left = (span.start / max) * 100;
+      const width = (span.dur / max) * 100;
+      const baselineLeft = (baseline / max) * 100;
+      const tone = span.dur > baseline * 5 ? 'crit' : span.dur > baseline * 1.5 ? 'warn' : '';
+      wf.append(
+        el('div', { class: 'trace-row' }, [
+          el('div', { class: 'trace-name', text: span.name }),
+          el('div', { class: 'trace-bar-bg' }, [
+            el('div', { class: 'trace-baseline-line', style: `left: ${baselineLeft}%` }),
+            el('div', {
+              class: `trace-bar ${span.status}`,
+              style: `left: ${left}%; width: ${Math.max(width, 0.5)}%`,
+            }),
+          ]),
+          el('div', { class: `trace-dur ${tone}`, text: `${span.dur}ms` }),
+        ])
+      );
+      wf.append(
+        el('div', { class: 'trace-note-row' }, [
+          el('div'),
+          el('div', { class: `trace-note ${span.status === S.CRIT ? 'crit' : span.status === S.WARN ? 'warn' : ''}`, text: span.note }),
+        ])
+      );
+    });
+
+    // Diagnosis narrative below
+    const diag = el('div', {
+      class: 'card',
+      style: 'margin-top: 14px;',
+    }, [
+      cardHead('Why is this slow?'),
+      el('div', { style: 'font-size: 13px; color: var(--text-soft); line-height: 1.7; padding: 4px;' }, [
+        '5 of 7 spans are within SLO. Two spans on FW-NYC-PRIMARY are out of bounds:',
+        el('br'),
+        el('br'),
+        el('strong', { style: 'color: var(--warn)', text: 'Policy eval (142ms, normally 4ms): ' }),
+        'connection-table contention consistent with split-brain state.',
+        el('br'),
+        el('br'),
+        el('strong', { style: 'color: var(--crit)', text: 'PRI → Trading hop (780ms, normally 12ms): ' }),
+        '3 connection resets observed before retry #4 succeeded. Logs show "master conflict — connection refused" from FW-NYC-SEC.',
+        el('br'),
+        el('br'),
+        el('span', { style: 'color: var(--accent)' }, [
+          '→ Conclusion: ',
+          el('strong', { text: 'fully consistent with hypothesis H1 (dual master).' }),
+          ' Fix the firewall, fix the trace.',
+        ]),
+      ]),
+    ]);
+
+    container.append(head, wf, diag);
+  }
+
+  // -- Variation 6: Cost Burn — dollars per minute ------------------------
+  function renderWarCost(container) {
+    const c = D.cost;
+    const fmt = (n) => '$' + n.toLocaleString('en-US');
+
+    const ticker = el('section', { class: 'cost-ticker' }, [
+      el('div', {}, [
+        el('div', { class: 'cost-realized' }, [
+          el('span', { class: 'currency', text: '$' }),
+          el('span', { class: 'blink', text: c.realized.toLocaleString('en-US') }),
+        ]),
+        el('div', { class: 'cost-rate' }, [
+          'Burning ',
+          el('strong', { text: fmt(c.burnRatePerMin) }),
+          ' per minute · started ', String(D.incident.durationMins), 'm ago',
+        ]),
+        el('div', { class: 'cost-rank', text: c.rankAllTime }),
+      ]),
+      el('div', { class: 'cost-context' }, [
+        el('span', { class: 'cost-context-label', text: 'Cost if not mitigated in next hour' }),
+        el('span', { class: 'cost-context-val', text: fmt(c.realized + c.burnRatePerMin * 60) }),
+        el('span', { class: 'cost-context-label', style: 'margin-top: 6px;', text: '24h projection (worst-case)' }),
+        el('span', { class: 'cost-context-val', style: 'color: var(--crit)', text: fmt(c.realized + c.burnRatePerMin * 1440) }),
+      ]),
+    ]);
+
+    const byClientCard = el('div', { class: 'card' }, [
+      cardHead('Cost by client tier'),
+      (() => {
+        const wrap = el('div', { class: 'cost-bar-list' });
+        const max = Math.max(...c.byClient.map((x) => x.value));
+        c.byClient.forEach((x) => {
+          wrap.append(
+            el('div', { class: 'cost-bar-row' }, [
+              el('div', { class: 'name', text: x.name }),
+              el('div', { class: 'bar' }, [
+                el('div', { class: 'bar-fill', style: `width: ${(x.value / max) * 100}%` }),
+              ]),
+              el('div', { class: 'val', text: fmt(x.value) }),
+            ])
+          );
+        });
+        return wrap;
+      })(),
+    ]);
+
+    const byServiceCard = el('div', { class: 'card' }, [
+      cardHead('Cost by service'),
+      (() => {
+        const wrap = el('div', { class: 'cost-bar-list' });
+        const max = Math.max(...c.byService.map((x) => x.value));
+        c.byService.forEach((x) => {
+          wrap.append(
+            el('div', { class: 'cost-bar-row' }, [
+              el('div', { class: 'name', text: x.name }),
+              el('div', { class: 'bar' }, [
+                el('div', { class: 'bar-fill', style: `width: ${(x.value / max) * 100}%` }),
+              ]),
+              el('div', { class: 'val', text: fmt(x.value) }),
+            ])
+          );
+        });
+        return wrap;
+      })(),
+    ]);
+
+    const mitigationCard = el('div', { class: 'card' }, [
+      cardHead('Mitigation ROI'),
+      (() => {
+        const wrap = el('div', { class: 'cost-mit-list' });
+        c.mitigations.forEach((m) => {
+          const cls = m.deltaPerMin < 0 ? 'save' : 'zero';
+          const text = m.deltaPerMin === 0 ? '$0/min' : `${m.deltaPerMin > 0 ? '+' : ''}${m.deltaPerMin}/min`;
+          wrap.append(
+            el('div', { class: 'cost-mit-row' }, [
+              el('div', {}, [
+                el('div', { class: 'cost-mit-step', text: m.step }),
+                el('div', { class: 'cost-mit-note', text: m.note }),
+              ]),
+              el('div', { class: `cost-mit-delta ${cls}`, text: text }),
+            ])
+          );
+        });
+        return wrap;
+      })(),
+    ]);
+
+    const grid = el('div', { class: 'cost-grid' }, [byClientCard, byServiceCard, mitigationCard]);
+
+    const historyCard = el('div', { class: 'card', style: 'margin-top: 14px;' }, [
+      cardHead('In context · trailing 12 months'),
+      (() => {
+        const wrap = el('div');
+        c.pastIncidents.forEach((p) => {
+          wrap.append(
+            el('div', { class: `cost-history-row ${p.current ? 'current' : ''}` }, [
+              el('div', { class: 'cost-history-name', text: p.name }),
+              el('div', { class: 'cost-history-cost', text: fmt(p.cost) }),
+              el('div', { class: 'cost-history-dur', text: `${p.durMin}m` }),
+            ])
+          );
+        });
+        return wrap;
+      })(),
+    ]);
+
+    container.append(ticker, grid, historyCard);
+  }
+
+  // -- Variation 7: Replay — scrubber + state at time --------------------
+  function renderWarReplay(container) {
+    const events = D.replayEvents;
+    const minMin = events[0].atMin;
+    const maxMin = events[events.length - 1].atMin;
+
+    const banner = el('section', { class: 'replay-banner' }, [
+      el('div', {}, [
+        el('div', { class: 'replay-banner-title', text: 'Forensic replay · INC-2026-0508-014' }),
+        el('div', { class: 'replay-banner-sub', text: 'Drag the scrubber to any moment. Every panel reflects state-as-of that time.' }),
+      ]),
+      el('div', { class: 'replay-time-display', id: 'replay-time-display' }),
+    ]);
+
+    // Scrubber wrap
+    const scrubber = el('section', { class: 'replay-scrubber-wrap' });
+    scrubber.append(
+      el('div', { class: 'replay-controls' }, [
+        el('button', { class: 'replay-btn', text: '◀◀ start',  onclick: () => setCursor(minMin) }),
+        el('button', { class: 'replay-btn', text: '◀ prev',    onclick: () => stepCursor(-1) }),
+        el('button', { class: 'replay-btn active', text: '▶ play' }),
+        el('button', { class: 'replay-btn', text: '▶▶ next',   onclick: () => stepCursor(1) }),
+        el('button', { class: 'replay-btn', text: 'jump to now', onclick: () => setCursor(maxMin) }),
+        el('span', { class: 'replay-speed', text: '1× speed' }),
+        el('span', { class: 'replay-spacer' }),
+        el('button', { class: 'replay-btn', text: 'compare A↔B' }),
+        el('button', { class: 'replay-btn', text: 'export clip' }),
+        el('button', { class: 'replay-btn', text: '+ annotate' }),
+      ])
+    );
+
+    const trackWrap = el('div', { class: 'replay-track-wrap' });
+    const track = el('div', { class: 'replay-track' });
+
+    events.forEach((ev) => {
+      const left = ((ev.atMin - minMin) / (maxMin - minMin)) * 100;
+      track.append(
+        el('div', {
+          class: `replay-event-mark ${ev.kind}`,
+          style: `left: ${left}%`,
+          title: ev.label,
+        })
+      );
+    });
+
+    const cursorEl = el('div', { class: 'replay-cursor' });
+    track.append(cursorEl);
+
+    const input = el('input', {
+      type: 'range',
+      class: 'replay-input',
+      min: String(minMin),
+      max: String(maxMin),
+      step: '1',
+      value: String(replayCursorMin),
+      oninput: (e) => setCursor(Number(e.target.value)),
+    });
+    trackWrap.append(track, input);
+    scrubber.append(trackWrap);
+
+    scrubber.append(
+      el('div', { class: 'replay-axis' }, [
+        el('span', { text: events[0].time }),
+        el('span', { text: events[Math.floor(events.length / 2)].time }),
+        el('span', { text: events[events.length - 1].time + ' (now)' }),
+      ])
+    );
+
+    // State at cursor
+    const stateCard = el('div', { class: 'replay-state-card', id: 'replay-state-card' });
+    const eventListCard = el('div', { class: 'replay-state-card' }, [
+      cardHead('Event log'),
+      (() => {
+        const list = el('div', { class: 'replay-event-list', id: 'replay-event-list' });
+        events.forEach((ev) => {
+          list.append(
+            el('div', {
+              class: 'replay-event-row',
+              'data-min': String(ev.atMin),
+              onclick: () => setCursor(ev.atMin),
+            }, [
+              el('span', { class: 'time', text: ev.time }),
+              el('div', {}, [
+                el('span', { class: `kind-dot ${ev.kind}` }),
+                el('span', { class: 'label', text: ev.label }),
+              ]),
+            ])
+          );
+        });
+        return list;
+      })(),
+    ]);
+
+    const stateGrid = el('div', { class: 'replay-state-grid' }, [stateCard, eventListCard]);
+
+    function eventAtCursor(min) {
+      // Find the most recent event at or before the cursor.
+      let chosen = events[0];
+      events.forEach((ev) => { if (ev.atMin <= min) chosen = ev; });
+      return chosen;
+    }
+
+    function setCursor(min) {
+      replayCursorMin = Math.max(minMin, Math.min(maxMin, min));
+      input.value = String(replayCursorMin);
+      const left = ((replayCursorMin - minMin) / (maxMin - minMin)) * 100;
+      cursorEl.style.left = `${left}%`;
+      const current = eventAtCursor(replayCursorMin);
+      document.getElementById('replay-time-display').textContent = current.time + ' ET';
+      // Update state card
+      stateCard.replaceChildren(
+        cardHead(`State at ${current.time}`),
+        el('div', { style: 'font-size: 11px; color: var(--text-muted); padding: 0 4px 8px 4px;', text: current.label }),
+        el('div', { class: 'replay-state-snapshot' }, [
+          stateCell('FW-NYC-PRI',     current.state['fw-nyc-pri']),
+          stateCell('FW-NYC-SEC',     current.state['fw-nyc-sec']),
+          stateCell('Trading',        current.state['svc-trading']),
+          stateCell('Order Routing',  current.state['svc-orders']),
+        ])
+      );
+      // Highlight the current row in event log
+      const list = document.getElementById('replay-event-list');
+      if (list) {
+        [...list.children].forEach((row) => {
+          const m = Number(row.dataset.min);
+          row.classList.toggle('current', m === current.atMin);
+          row.classList.toggle('past', m < current.atMin);
+        });
+      }
+    }
+
+    function stepCursor(dir) {
+      const idx = events.findIndex((ev) => ev.atMin >= replayCursorMin);
+      const target = events[Math.max(0, Math.min(events.length - 1, idx + dir))];
+      setCursor(target.atMin);
+    }
+
+    container.append(banner, scrubber, stateGrid);
+    setCursor(replayCursorMin);
+  }
+
+  function stateCell(name, status) {
+    const labels = { ok: 'HEALTHY', warn: 'DEGRADED', crit: 'IMPAIRED' };
+    return el('div', { class: 'replay-state-cell' }, [
+      el('div', { class: 'name', text: name }),
+      el('div', { class: `val ${status}`, text: labels[status] || status.toUpperCase() }),
+    ]);
   }
 
   function metaSpan(label, value) {
@@ -604,5 +1261,6 @@
   // Boot
   // -------------------------------------------------------------------------
   const initial = (location.hash || '#hub').slice(1);
-  setView(['hub', 'tree', 'war-room', 'timeline'].includes(initial) ? initial : 'hub');
+  const initialName = initial.split('/')[0];
+  setView(['hub', 'tree', 'war-room', 'timeline'].includes(initialName) ? initial : 'hub');
 })();
