@@ -28,7 +28,7 @@ export default function ReviewQueue({ items }: { items: ReviewItem[] }) {
   }
 
   return (
-    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
       {queue.map(it => (
         <div key={it.id} className="bg-white rounded-xl border overflow-hidden">
           <div className="relative">

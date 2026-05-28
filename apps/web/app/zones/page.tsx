@@ -20,9 +20,9 @@ export default async function ZonesPage() {
   const zones = await loadZones();
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
         <h1 className="text-2xl font-semibold">Zones</h1>
-        <span className="text-sm text-slate-500">
+        <span className="text-xs sm:text-sm text-slate-500">
           Draw a polygon below or POST GeoJSON to <code>/api/zones</code>.
         </span>
       </div>
@@ -36,15 +36,15 @@ export default async function ZonesPage() {
         ) : (
           <ul className="divide-y">
             {zones.map(z => (
-              <li key={z.id} className="px-4 py-3 flex items-center justify-between">
+              <li key={z.id} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
                   <Link href={`/zones/${z.id}`} className="font-medium">{z.name}</Link>
                   <div className="text-xs text-slate-500">
                     z{z.zoom} · {z.status} · created {new Date(z.created_at).toLocaleDateString()}
                   </div>
                 </div>
-                <form action={`/api/zones/${z.id}/fetch`} method="post">
-                  <button className="text-sm px-3 py-1.5 rounded-lg bg-ink text-white">
+                <form action={`/api/zones/${z.id}/fetch`} method="post" className="sm:flex-shrink-0">
+                  <button className="w-full sm:w-auto text-sm px-3 py-2 rounded-lg bg-ink text-white">
                     Run imagery sweep
                   </button>
                 </form>

@@ -50,12 +50,12 @@ export default async function HomePage() {
       </section>
 
       {counts ? (
-        <section className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
           {cards.map(c => (
             <Link key={c.label} href={c.href}
-              className="block bg-white rounded-xl border p-4 hover:shadow-sm transition">
-              <div className="text-xs uppercase tracking-wide text-slate-500">{c.label}</div>
-              <div className="text-2xl font-semibold mt-1">{c.value}</div>
+              className="block bg-white rounded-xl border p-3 sm:p-4 hover:shadow-sm active:bg-slate-50 transition">
+              <div className="text-[10px] sm:text-xs uppercase tracking-wide text-slate-500">{c.label}</div>
+              <div className="text-xl sm:text-2xl font-semibold mt-1">{c.value}</div>
             </Link>
           ))}
         </section>

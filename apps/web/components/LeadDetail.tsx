@@ -43,7 +43,7 @@ export default function LeadDetail({ lead, topDetection, signedUrl }: Props) {
   const bbox = topDetection?.bbox_pixels as [number, number, number, number] | undefined;
 
   return (
-    <div className="grid md:grid-cols-3 gap-6">
+    <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
       <section className="md:col-span-2 space-y-4">
         <div className="bg-white rounded-xl border overflow-hidden">
           {signedUrl && tile ? (

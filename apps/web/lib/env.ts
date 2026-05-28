@@ -12,12 +12,12 @@ function optional(name: string, fallback = ""): string {
 
 // First non-empty wins. Lets us accept both the legacy Supabase variable
 // names (anon / service_role) and the new ones (publishable / secret).
-function firstOf(names: string[], required = false): string {
+function firstOf(names: string[], mustHave = false): string {
   for (const n of names) {
     const v = process.env[n];
     if (v) return v;
   }
-  if (required) throw new Error(`Missing env var: one of ${names.join(", ")}`);
+  if (mustHave) throw new Error(`Missing env var: one of ${names.join(", ")}`);
   return "";
 }
 

@@ -29,9 +29,9 @@ export default function LabelCanvas({ tiles }: { tiles: Tile[] }) {
     return <div className="bg-white rounded-xl border p-8 text-center text-slate-500">Fetch some imagery first.</div>;
   }
 
-  function pos(e: React.MouseEvent) {
+  function pos(e: React.PointerEvent) {
     const r = imgRef.current!.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top, scaleX: active!.width_px / r.width, scaleY: active!.height_px / r.height };
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
   }
 
   async function save(isNegative: boolean) {
@@ -63,10 +63,11 @@ export default function LabelCanvas({ tiles }: { tiles: Tile[] }) {
     <div className="grid md:grid-cols-4 gap-4">
       <aside className="md:col-span-1 space-y-2">
         <div className="text-xs uppercase tracking-wide text-slate-500">Tiles</div>
-        <div className="space-y-2 max-h-[520px] overflow-auto">
+        {/* Horizontal strip on mobile, vertical column on desktop. */}
+        <div className="flex md:block gap-2 md:space-y-2 overflow-x-auto md:overflow-x-visible md:max-h-[520px] md:overflow-y-auto pb-2 md:pb-0">
           {tiles.map(t => (
             <button key={t.id} onClick={() => { setActive(t); setDrag(null); }}
-              className={`block w-full overflow-hidden rounded-lg border ${active.id === t.id ? "ring-2 ring-accent" : ""}`}>
+              className={`shrink-0 w-24 md:w-full block overflow-hidden rounded-lg border ${active.id === t.id ? "ring-2 ring-accent" : ""}`}>
               <img src={t.signedUrl} alt="" className="w-full" />
             </button>
           ))}
@@ -82,14 +83,19 @@ export default function LabelCanvas({ tiles }: { tiles: Tile[] }) {
           <div className="text-sm text-slate-500">{savedCount} saved this session</div>
         </div>
 
-        <div className="relative bg-white rounded-xl border overflow-hidden select-none">
+        <div className="relative bg-white rounded-xl border overflow-hidden select-none touch-none">
           <img
             ref={imgRef}
             src={active.signedUrl}
             alt=""
             className="w-full block"
-            onMouseDown={e => { const p = pos(e); setStart(p); setDrag({ x: p.x, y: p.y, w: 0, h: 0 }); }}
-            onMouseMove={e => {
+            onPointerDown={e => {
+              (e.target as Element).setPointerCapture(e.pointerId);
+              const p = pos(e);
+              setStart(p);
+              setDrag({ x: p.x, y: p.y, w: 0, h: 0 });
+            }}
+            onPointerMove={e => {
               if (!start) return;
               const p = pos(e);
               setDrag({
@@ -99,7 +105,8 @@ export default function LabelCanvas({ tiles }: { tiles: Tile[] }) {
                 h: Math.abs(p.y - start.y),
               });
             }}
-            onMouseUp={() => setStart(null)}
+            onPointerUp={() => setStart(null)}
+            onPointerCancel={() => setStart(null)}
             draggable={false}
           />
           {drag && (

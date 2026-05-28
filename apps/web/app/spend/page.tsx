@@ -60,7 +60,8 @@ export default async function SpendPage() {
 
       <section className="bg-white rounded-xl border overflow-hidden">
         <div className="px-4 py-3 border-b text-sm font-medium">By provider</div>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[480px]">
           <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
             <tr>
               <th className="text-left px-4 py-2">Provider</th>
@@ -83,6 +84,7 @@ export default async function SpendPage() {
             )}
           </tbody>
         </table>
+        </div>
       </section>
     </div>
   );

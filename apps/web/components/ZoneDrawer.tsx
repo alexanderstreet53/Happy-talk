@@ -87,9 +87,9 @@ export default function ZoneDrawer() {
     <div className="grid md:grid-cols-3 gap-4">
       <div className="md:col-span-2 bg-white rounded-xl border overflow-hidden">
         {token ? (
-          <div ref={containerRef} className="w-full h-[420px]" />
+          <div ref={containerRef} className="w-full h-[280px] sm:h-[420px]" />
         ) : (
-          <div className="w-full h-[420px] flex items-center justify-center text-sm text-slate-500 p-4 text-center">
+          <div className="w-full h-[280px] sm:h-[420px] flex items-center justify-center text-sm text-slate-500 p-4 text-center">
             Set <code className="mx-1 px-1 bg-slate-100 rounded">NEXT_PUBLIC_MAPBOX_TOKEN</code> to draw zones on a map.
             For now, paste a GeoJSON polygon directly into your DB or call <code className="mx-1 px-1 bg-slate-100 rounded">POST /api/zones</code>.
           </div>

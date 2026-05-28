@@ -50,7 +50,7 @@ export default function ZoneDetail({ zone, tileCount, detectionCount, leadCount 
         {zone.description && <p className="text-slate-600 text-sm mt-1">{zone.description}</p>}
       </header>
 
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
         <Stat label="Status" value={status} />
         <Stat label="Cached tiles" value={tileCount} />
         <Stat label="Detections" value={detectionCount} />
@@ -71,7 +71,7 @@ export default function ZoneDetail({ zone, tileCount, detectionCount, leadCount 
 
       <section className="bg-white rounded-xl border p-4 space-y-3">
         <h2 className="font-medium">Pipeline actions</h2>
-        <div className="flex gap-2 text-sm flex-wrap">
+        <div className="flex flex-col sm:flex-row gap-2 text-sm">
           <button onClick={runFetch} disabled={busy !== null || status !== "active"}
             className="px-3 py-2 rounded-lg bg-ink text-white disabled:opacity-40">
             {busy === "fetch" ? "Fetching tiles…" : "Run imagery sweep (one chunk)"}
@@ -89,9 +89,9 @@ export default function ZoneDetail({ zone, tileCount, detectionCount, leadCount 
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-white rounded-xl border p-4">
-      <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
-      <div className="text-2xl font-semibold mt-1">{value}</div>
+    <div className="bg-white rounded-xl border p-3 sm:p-4">
+      <div className="text-[10px] sm:text-xs uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="text-xl sm:text-2xl font-semibold mt-1 capitalize">{value}</div>
     </div>
   );
 }
