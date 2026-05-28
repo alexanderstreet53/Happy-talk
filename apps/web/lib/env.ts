@@ -10,6 +10,17 @@ function optional(name: string, fallback = ""): string {
   return process.env[name] ?? fallback;
 }
 
+// First non-empty wins. Lets us accept both the legacy Supabase variable
+// names (anon / service_role) and the new ones (publishable / secret).
+function firstOf(names: string[], required = false): string {
+  for (const n of names) {
+    const v = process.env[n];
+    if (v) return v;
+  }
+  if (required) throw new Error(`Missing env var: one of ${names.join(", ")}`);
+  return "";
+}
+
 function num(name: string, fallback: number): number {
   const v = process.env[name];
   if (!v) return fallback;
@@ -20,8 +31,8 @@ function num(name: string, fallback: number): number {
 
 export const env = {
   supabaseUrl:        required("NEXT_PUBLIC_SUPABASE_URL"),
-  supabaseAnonKey:    required("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
-  supabaseServiceKey: optional("SUPABASE_SERVICE_ROLE_KEY"),
+  supabaseAnonKey:    firstOf(["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY"], true),
+  supabaseServiceKey: firstOf(["SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"]),
   googleKey:          optional("GOOGLE_MAPS_API_KEY"),
   mapboxToken:        optional("NEXT_PUBLIC_MAPBOX_TOKEN"),
   workerUrl:          optional("WORKER_URL", "http://localhost:8000"),
