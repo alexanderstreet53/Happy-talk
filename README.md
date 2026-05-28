@@ -1,103 +1,92 @@
-# Happy Talk
+# Gas Tank Detection Platform
 
-> a softer way to talk to yourself
+A geospatial prospecting tool that finds businesses using industrial gas tanks
+(LNG, welding gases, oxy-acetylene) by analysing satellite imagery across
+defined industrial zones, then surfaces results as sales leads.
 
-A Flutter app that gives you motivational prompts tuned to your personality —
-calm, specific, kind reminders made to interrupt anxious spirals and
-perfectionist loops.
+The target customer base — welders, metal fabricators, small manufacturers —
+often has no website and isn't in business registries, so it must be
+discovered visually via the gas infrastructure on the premises.
 
-## Quickstart
-
-```bash
-flutter create .          # generate platform folders (ios/, android/, etc.)
-flutter pub get
-flutter run
-```
-
-> The repository ships only with the cross-platform `lib/` source. Run
-> `flutter create .` once after cloning to scaffold the platform projects.
-
-## Project layout
+## Repository layout
 
 ```
-lib/
-├── main.dart                      # entrypoint
-├── app.dart                       # MaterialApp + theme wiring
-├── data/
-│   ├── quiz_questions.dart        # 6-question quiz content
-│   └── quotes_data.dart           # curated quote library
-├── models/
-│   ├── personality.dart           # 4 archetypes + metadata
-│   ├── quiz_question.dart
-│   └── quote.dart
-├── screens/
-│   ├── splash_screen.dart
-│   ├── welcome_screen.dart
-│   ├── quiz_screen.dart
-│   ├── result_screen.dart
-│   ├── home_screen.dart
-│   └── favorites_screen.dart
-├── services/
-│   ├── personality_scorer.dart    # tally → winning type
-│   ├── quote_service.dart         # filter + non-repeating shuffle
-│   └── storage_service.dart       # shared_preferences wrapper
-├── theme/
-│   └── app_theme.dart             # palette, typography, gradients
-└── widgets/
-    ├── gradient_background.dart   # bg + radial blobs
-    ├── primary_button.dart        # filled + outlined variants
-    └── quote_card.dart            # the main hero card
+apps/
+├── web/                  Next.js 15 (App Router) — frontend + API routes
+└── worker/               FastAPI + PyTorch + YOLOv8 — detection service
+
+supabase/
+├── migrations/           PostGIS schema
+└── seed.sql              one demo zone
+
+docs/
+├── architecture.md       end-to-end pipeline diagram
+├── google-tos.md         Google Maps Platform ToS compliance notes
+└── pipeline.md           module-by-module spec
+
+legacy/                   the old Flutter "Happy Talk" app, untouched
 ```
 
-## Principles
+## Pipeline
 
-- **No spirals.** Quotes invite, never accuse.
-- **Specific, not generic.** Quotes filtered by personality.
-- **Quiet UI.** Pastel gradients, generous whitespace, no streaks.
-- **Private by default.** All data on-device. No accounts, no analytics.
+| Stage              | Owner       | What happens                                                                 |
+| ------------------ | ----------- | ---------------------------------------------------------------------------- |
+| 1. Zone definition | `apps/web`  | User draws/imports polygons; stored as `zones.boundary` (`geography`).       |
+| 2. Imagery fetch   | `apps/web`  | Zone tiled into grid; tiles fetched from Google Static APIs with 90d cache.  |
+| 3. Detection       | `apps/worker` | YOLOv8 fine-tuned to spot cylinders/tanks; outputs georeferenced bboxes.   |
+| 4. Consolidation   | `apps/web`  | DBSCAN clusters detections into sites; reverse-geocoded; enrichment.        |
+| 5. Verification    | `apps/web`  | Reviewer confirms/rejects via crop + Street View before promotion to lead.  |
 
 ## Stack
 
-| Layer    | Choice                                |
-| -------- | ------------------------------------- |
-| Framework | Flutter ≥ 3.19 (Dart ≥ 3.3)          |
-| Material | Material 3                            |
-| Fonts    | `google_fonts` (Fraunces + Plus Jakarta Sans) |
-| Storage  | `shared_preferences`                  |
-| Share    | `share_plus`                          |
-| Widget   | `home_widget` (iOS WidgetKit + Android AppWidget) |
-| Lints    | `flutter_lints`                       |
+- **Frontend / API**: Next.js 15 on Vercel
+- **Database & storage**: Supabase (Postgres 16 + PostGIS 3 + Storage)
+- **ML worker**: FastAPI + Ultralytics YOLOv8, deployed to Fly.io
+- **Maps**: Mapbox GL JS (display), Google Maps Static / Street View (imagery source)
 
-## Features
+## Getting started
 
-- **Personality quiz + matched quote feed** — four warm archetypes
-- **SOS room** — separate quote pool + breathing pacer for spiraling moments
-- **Favorites** — kept thoughts, on-device only
-- **Share** — system share sheet, send a thought to friends and family
-- **iOS Home Screen widget** — see "iOS widget setup" below
-- **Painted brand logo** — `AppLogo` widget, `web/icons/logo.svg`
+```bash
+# 1. Database — run migrations against your Supabase project
+supabase db push
 
-## iOS widget setup
+# 2. Web app
+cd apps/web
+cp .env.example .env.local      # fill in Supabase + Google + Mapbox keys
+npm install
+npm run dev                     # http://localhost:3000
 
-The Flutter side is wired up via `lib/services/widget_service.dart` and
-`lib/widgets/app_logo.dart`, and the Swift extension lives at
-`ios/HappyTalkWidget/`. Wiring it into the Xcode project is a one-time
-manual step:
+# 3. Worker (separate terminal)
+cd apps/worker
+cp .env.example .env
+uv sync                         # or: pip install -e .
+uvicorn app.main:app --reload   # http://localhost:8000
+```
 
-1. Run `flutter create .` to generate the `ios/` Xcode project.
-2. Open `ios/Runner.xcworkspace` in Xcode.
-3. **File → New → Target → Widget Extension**, name it `HappyTalkWidget`.
-   Untick "Include Configuration App Intent". Activate the scheme when prompted.
-4. Replace the auto-generated files with the ones already in
-   `ios/HappyTalkWidget/`:
-   - `HappyTalkWidget.swift`
-   - `Info.plist`
-   - `HappyTalkWidget.entitlements`
-5. **Signing & Capabilities** → add **App Groups** to *both* the Runner
-   target and the HappyTalkWidget target. Use the identifier
-   `group.com.happytalk.shared` (must match `WidgetService.appGroupId`).
-6. Build & run on a device or simulator. Long-press the home screen,
-   tap **+**, search "Happy Talk" and add the widget.
+## Cost controls — read these before pointing it at anything large
 
-Android: a parallel widget provider can be added under `android/`. Not
-shipped in this repo yet — `home_widget` will silently no-op until then.
+- **Never scan outside defined zones.** The tile generator clips to
+  `zones.boundary`; nothing outside is ever requested.
+- **Cache aggressively.** Every fetched tile is written to Supabase Storage
+  with `(z, x, y)` keys and a `fetched_at` timestamp. Re-fetches are blocked
+  by `IMAGERY_TTL_DAYS` (default 90) — see `apps/web/lib/imagery/cache.ts`.
+- **Track spend.** Every API call writes a row to `api_spend` with an
+  estimated cost. The Spend page (`/spend`) shows running totals per day,
+  per zone, per provider.
+- **Rate limits.** Tile fetches are queued and capped by `IMAGERY_QPS`
+  (default 10). Bulk runs respect a per-day cap (`IMAGERY_DAILY_CAP_USD`).
+
+## Google Maps Platform ToS
+
+Caching satellite/Street View imagery and running automated processing on
+it sits in a grey area. See [`docs/google-tos.md`](docs/google-tos.md) for
+a clause-by-clause read and the mitigations in place. For production-scale
+work, Mapbox Satellite or commercial providers (Planet, Sentinel via SH)
+have friendlier licensing — the imagery layer is intentionally provider-
+swappable.
+
+## Status
+
+Scaffold-complete, single-zone end-to-end target. Detection model ships
+with a base YOLOv8n; fine-tuning happens via `apps/worker/app/training`
+once you have ~300 labelled crops from the labelling tool at `/label`.
